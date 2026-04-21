@@ -134,8 +134,8 @@ class AirtableClient:
 
         raise RuntimeError(
             "All upload methods failed.\n"
-            "Quick fix: add a free imgbb API key to config.yaml under airtable.imgbb_api_key\n"
-            "Get one free at: https://imgbb.com/api  (takes 30 seconds)"
+            "Quick fix: set AIRTABLE_IMGBB_API_KEY in your .env file.\n"
+            "Get a free key at: https://imgbb.com/api  (takes 30 seconds)"
         )
 
     def _upload_to_imgbb(self, image_bytes: bytes, api_key: str) -> str | None:
