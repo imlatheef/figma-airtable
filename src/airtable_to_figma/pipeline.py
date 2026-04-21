@@ -2,7 +2,6 @@
 pipeline.py
 ───────────
 Orchestrates the full flow for a single Airtable record.
-Now accepts a typed Settings object instead of a raw config dict.
 """
 
 from __future__ import annotations
@@ -16,10 +15,10 @@ from typing import Any
 import requests
 from PIL import Image
 
-from airtable_client import AirtableClient
-from figma_client import FigmaClient
-from image_renderer import build_jpeg
-from settings import Settings
+from airtable_to_figma.airtable_client import AirtableClient
+from airtable_to_figma.figma_client import FigmaClient
+from airtable_to_figma.image_renderer import build_jpeg
+from airtable_to_figma.settings import Settings
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +78,7 @@ def _get_photo_images(
 
 
 def run_pipeline(settings: Settings, record_id: str) -> None:
+    """End-to-end pipeline for one Airtable record."""
     at  = settings.airtable
     fig = settings.figma
     m   = settings.mappings

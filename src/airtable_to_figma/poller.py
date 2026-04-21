@@ -1,11 +1,11 @@
 """
 poller.py
 ─────────
-Polls Airtable every N seconds and processes any record where
-the trigger field is set, generating a Figma-based design and
-uploading it back as an attachment.
+Entry point. Polls Airtable every N seconds and processes records
+where the trigger field is set.
 
-Run:  python3 poller.py
+Run:  python -m airtable_to_figma.poller
+  or: airtable-to-figma  (if installed via pyproject.toml scripts)
 """
 
 from __future__ import annotations
@@ -16,14 +16,13 @@ import time
 import colorlog
 import requests
 
-from airtable_client import AirtableClient
-from pipeline import run_pipeline
-from settings import get_settings
+from airtable_to_figma.pipeline import run_pipeline
+from airtable_to_figma.settings import Settings, get_settings
 
 log = logging.getLogger(__name__)
 
 
-def _setup_logging():
+def _setup_logging() -> None:
     handler = colorlog.StreamHandler()
     handler.setFormatter(
         colorlog.ColoredFormatter(
@@ -34,7 +33,7 @@ def _setup_logging():
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
-def get_pending_records(settings) -> list[dict]:
+def get_pending_records(settings: Settings) -> list[dict]:
     """Return records where the trigger field is checked."""
     at = settings.airtable
     formula = f"{{{at.trigger_field}}}=1"
@@ -51,10 +50,9 @@ def get_pending_records(settings) -> list[dict]:
     return resp.json().get("records", [])
 
 
-def run_poller():
+def run_poller() -> None:
     _setup_logging()
 
-    # Validate all settings on startup — fails fast with clear errors
     try:
         settings = get_settings()
     except Exception as e:

@@ -2,11 +2,9 @@ __pycache__/
 *.pyc
 *.pyo
 .env
-config.yaml
 *.jpg
 *.jpeg
 *.png
-load_config.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

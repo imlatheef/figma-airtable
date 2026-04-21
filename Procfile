@@ -1,1 +1,1 @@
-worker: python3 poller.py
+worker: python -m airtable_to_figma.poller
