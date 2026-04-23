@@ -37,8 +37,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 log = logging.getLogger(__name__)
 
-# Bundled fallback font (always available in Python ≥ 3.x via Pillow)
-_FALLBACK_FONT = ImageFont.load_default()
+# Sentinel used when no font path is resolved at all — replaced with a
+# size-aware call inside _load_font() so text isn't rendered at bitmap size.
+_FALLBACK_FONT = None
 
 # Fonts directory: <project_root>/fonts/
 _FONTS_DIR = Path(__file__).parent.parent.parent / "fonts"
@@ -117,7 +118,20 @@ def _load_font(font_path: str | None, size: int) -> ImageFont.FreeTypeFont | Ima
             except Exception:
                 continue
 
-    return _FALLBACK_FONT
+    # Last resort: Pillow's built-in default font.
+    # load_default(size=N) is supported in Pillow ≥ 10.1 and renders at the
+    # correct pixel size.  Older Pillow returns a fixed tiny bitmap — still
+    # better than nothing, and warns us clearly in the log.
+    log.warning(
+        "No usable font found for size=%dpx — falling back to Pillow default. "
+        "Check that font files in fonts/ are static (non-variable) TTF/OTF.",
+        size,
+    )
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:
+        # Pillow < 10.1 doesn't accept the size argument
+        return ImageFont.load_default()
 
 
 class ImageRenderer:
@@ -283,14 +297,14 @@ class ImageRenderer:
             )
             if font_path:
                 log.info(
-                    "Layer '%s': font '%s' (weight=%d) → %s",
-                    layer_name, family_with_weight, weight_num, font_path,
+                    "Layer '%s': font '%s' (weight=%d, size=%dpx) → %s",
+                    layer_name, family_with_weight, weight_num, font_size, font_path,
                 )
             else:
                 log.warning(
-                    "Layer '%s': no font_map entry for '%s' / '%s' / '%s' — using system fallback. "
+                    "Layer '%s': no font_map entry for '%s' / '%s' / '%s' (size=%dpx) — using system fallback. "
                     "Add an entry to font_map in templates.yaml.",
-                    layer_name, family_with_weight, post_script, family,
+                    layer_name, family_with_weight, post_script, family, font_size,
                 )
 
         font = _load_font(font_path, font_size)
