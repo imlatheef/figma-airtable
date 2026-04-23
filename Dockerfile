@@ -1,32 +1,47 @@
-FROM python:3.9 AS builder
+# ── Build stage: install dependencies ────────────────────────────────────────
+FROM python:3.12-slim AS builder
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+# Pin uv version for reproducible builds — update this line to upgrade
+COPY --from=ghcr.io/astral-sh/uv:0.6.14 /uv /bin/uv
+
 WORKDIR /app
 
-RUN python -m venv .venv
-COPY pyproject.toml ./
-RUN .venv/bin/pip install .
-FROM python:3.9-slim
+# Compile bytecode for faster container startup
+# Copy mode avoids hard-link issues across filesystem layers
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+# Install dependencies first — this layer is cached until pyproject.toml changes.
+# Once you have a uv.lock file (run `uv lock` locally), add --frozen to both
+# uv sync calls for fully reproducible builds.
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --no-install-project --no-dev
+
+# Copy source and install the project itself
+COPY src/ src/
+RUN uv sync --no-dev
+
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM python:3.12-slim
+
 WORKDIR /app
+
+# Copy the pre-built virtualenv from the builder — no uv needed at runtime
 COPY --from=builder /app/.venv .venv/
-COPY . .
-CMD ["/app/.venv/bin/flask", "run", "--host=0.0.0.0", "--port=8080"]
 
-FROM python:3.9-slim
-
-WORKDIR /app
-
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copy project files
-COPY pyproject.toml .
+# Copy application files
 COPY src/ src/
 COPY fonts/ fonts/
+COPY templates.yaml ./
 
-# Install dependencies
-RUN uv pip install --system -e .
+# Put the venv on PATH
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Run the poller
+# Run as non-root for security
+RUN useradd --create-home --no-log-init appuser && chown -R appuser /app
+USER appuser
+
 CMD ["python", "-m", "airtable_to_figma.poller"]
