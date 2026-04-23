@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for app-lingering-flower-2230 on 2026-04-23T19:15:05Z
+# fly.toml app configuration file generated for figma-airtable on 2026-04-23T19:25:37Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'app-lingering-flower-2230'
+app = 'figma-airtable'
 primary_region = 'iad'
 
 [build]
