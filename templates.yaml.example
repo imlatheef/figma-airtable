@@ -1,0 +1,38 @@
+# templates.yaml.example
+# ───────────────────────
+# Copy this file to templates.yaml and fill in your own values.
+# This example file is safe to commit. templates.yaml should NOT be committed
+# if it contains internal Airtable base IDs you want to keep private.
+#
+# How to find the values:
+#   figma_file_key:      Open your Figma file → copy the ID from the URL
+#                        figma.com/file/<KEY>/your-file-name
+#   figma_frame_node_id: Right-click a frame in Figma → Copy/Paste → Copy link
+#                        Extract the node-id param: ?node-id=1-2  →  use "1:2"
+#   airtable_base_id:    Open your base → Airtable API docs → shown at top
+#   airtable_table_name: Exact name of the table (case-sensitive)
+
+templates:
+
+  - name: "My Design Template"
+
+    # Airtable
+    airtable_base_id:          "appXXXXXXXXXXXXXX"
+    airtable_table_name:       "My Table"
+    airtable_trigger_field:    "Ready for Design"   # checkbox field
+    airtable_attachment_field: "Generated Design"   # attachment field
+
+    # Figma
+    figma_file_key:      "XXXXXXXXXXXXXXXXXXXXXXXX"
+    figma_frame_node_id: "1:2"
+    figma_export_scale:  2.0   # 1.0 = 1x, 2.0 = 2x (retina), max 4.0
+
+    # Text fields: "Airtable field name" → "Figma layer name"
+    field_mappings:
+      "Title Field":    "Title"
+      "Subtitle Field": "Subtitle"
+      "Name Field":     "Name"
+
+    # Image/attachment fields: "Airtable attachment field" → "Figma image layer name"
+    image_field_mappings:
+      "Photo Field": "Photo"
