@@ -1,5 +1,13 @@
-fly.toml
+.env
+.env.*
+!.env.example
 .git/
-__pycache__/
-.envrc
 .venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.pytest_cache/
+dist/
+*.egg-info/

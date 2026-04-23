@@ -2,8 +2,7 @@
 name = "airtable-to-figma"
 version = "0.1.0"
 description = "Automated design generation from Airtable data using Figma templates"
-readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
     "requests>=2.31.0",
     "pillow>=10.0.0",
@@ -17,11 +16,14 @@ dependencies = [
 airtable-to-figma = "airtable_to_figma.poller:run_poller"
 
 [build-system]
-requires = ["uv_build>=0.11.7,<0.12.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airtable_to_figma"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
