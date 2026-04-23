@@ -168,6 +168,9 @@ class FigmaClient:
                     "width": box.get("width", 200),
                     "height": box.get("height", 40),
                     "font_size": style.get("fontSize", 16),
+                    "font_family": style.get("fontFamily", ""),
+                    "font_post_script": style.get("fontPostScriptName", ""),
+                    "font_weight": style.get("fontWeight", 400),
                     "color": _rgba_from_fill(fills),
                     "align": style.get("textAlignHorizontal", "LEFT"),
                 }

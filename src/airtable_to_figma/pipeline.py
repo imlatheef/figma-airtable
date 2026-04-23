@@ -1,14 +1,18 @@
 """
 pipeline.py
 ───────────
-Orchestrates the full flow for a single Airtable record.
+Processes one Airtable record for one template.
+
+Supports two modes transparently:
+  - Single output:  one Figma frame → one image → one attachment field
+  - Multi-output:   one trigger → multiple frames → multiple attachment fields
+                    (e.g. OpenGraph + LinkedIn Social + Speaker Social)
 """
 
 from __future__ import annotations
 
 import io
 import logging
-import threading
 from datetime import datetime
 from typing import Any
 
@@ -19,33 +23,35 @@ from airtable_to_figma.airtable_client import AirtableClient
 from airtable_to_figma.figma_client import FigmaClient
 from airtable_to_figma.image_renderer import build_jpeg
 from airtable_to_figma.settings import Settings
+from airtable_to_figma.template import TemplateConfig, TemplateOutput, TemplateVariant
 
 log = logging.getLogger(__name__)
 
-# ── Per-process cache so we only call Figma once ────────────────────────────────
-_cache_lock = threading.Lock()
-_base_image_cache: Image.Image | None = None
-_text_nodes_cache: list[dict] | None = None
-_image_nodes_cache: list[dict] | None = None
+# ── Per-variant Figma cache keyed by (file_key, frame_node_id) ──────────────
+_figma_cache: dict[tuple[str, str], tuple[Image.Image, list[dict], list[dict]]] = {}
 
 
 def _get_figma_assets(
     figma: FigmaClient,
-    frame_node_id: str,
-    scale: float,
+    variant: TemplateVariant,
+    label: str,
 ) -> tuple[Image.Image, list[dict], list[dict]]:
-    global _base_image_cache, _text_nodes_cache, _image_nodes_cache
-    with _cache_lock:
-        if _base_image_cache is None or _text_nodes_cache is None:
-            log.info("Fetching Figma template assets (will be cached for this run)…")
-            _text_nodes_cache  = figma.get_text_nodes(frame_node_id)
-            _image_nodes_cache = figma.get_image_nodes(frame_node_id)
-            _base_image_cache  = figma.export_frame_image(frame_node_id, scale=scale)
-            log.info(
-                "Cached %d text node(s), %d image node(s), image size=%s",
-                len(_text_nodes_cache), len(_image_nodes_cache), _base_image_cache.size,
-            )
-        return _base_image_cache, _text_nodes_cache, _image_nodes_cache
+    """Return (base_image, text_nodes, image_nodes), cached per variant."""
+    key = variant.cache_key
+    if key not in _figma_cache:
+        log.info("[%s] Fetching Figma assets for frame %s (will be cached)…",
+                 label, variant.figma_frame_node_id)
+        text_nodes  = figma.get_text_nodes(variant.figma_frame_node_id)
+        image_nodes = figma.get_image_nodes(variant.figma_frame_node_id)
+        base_image  = figma.export_frame_image(
+            variant.figma_frame_node_id, scale=variant.figma_export_scale
+        )
+        _figma_cache[key] = (base_image, text_nodes, image_nodes)
+        log.info(
+            "[%s] Cached — %d text, %d image nodes, size=%s",
+            label, len(text_nodes), len(image_nodes), base_image.size,
+        )
+    return _figma_cache[key]
 
 
 def _download_photo(url: str) -> Image.Image | None:
@@ -70,53 +76,49 @@ def _get_photo_images(
         photo_url = attachments[0].get("url", "")
         if not photo_url:
             continue
-        log.info("Downloading photo for layer '%s'…", figma_layer)
         img = _download_photo(photo_url)
         if img:
             photo_images[figma_layer] = img
+            log.info("Downloaded photo for layer '%s'", figma_layer)
     return photo_images
 
 
-def run_pipeline(settings: Settings, record_id: str) -> None:
-    """End-to-end pipeline for one Airtable record."""
-    at  = settings.airtable
-    fig = settings.figma
-    m   = settings.mappings
+def _process_output(
+    airtable: AirtableClient,
+    settings: Settings,
+    template: TemplateConfig,
+    output: TemplateOutput,
+    fields: dict[str, Any],
+    record_id: str,
+) -> None:
+    """Render one output and upload it to its attachment field."""
+    label = f"{template.name} › {output.name}"
 
-    field_mappings       = m.field_mappings_dict
-    image_field_mappings = m.image_field_mappings_dict
+    # ── Resolve variant ───────────────────────────────────────────────────────
+    variant_value = ""
+    if output.variant_field:
+        raw = fields.get(output.variant_field, "")
+        if isinstance(raw, list):
+            raw = raw[0] if raw else ""
+        variant_value = str(raw).strip()
+        log.info("[%s] Variant field '%s' = '%s'", label, output.variant_field, variant_value)
 
-    # ── 1. Fetch record ───────────────────────────────────────────────────────
-    airtable = AirtableClient(
-        api_key=at.api_key,
-        base_id=at.base_id,
-        table_name=at.table_name,
-        imgbb_key=at.imgbb_api_key,
+    variant = output.resolve_variant(variant_value, template.name)
+
+    # ── Merge field mappings ──────────────────────────────────────────────────
+    field_mappings, image_field_mappings = template.resolve_field_mappings(output)
+
+    # ── Figma assets ──────────────────────────────────────────────────────────
+    figma = FigmaClient(
+        api_key=settings.figma_api_key,
+        file_key=variant.figma_file_key,
     )
-    fields = airtable.get_fields(record_id)
-    log.info("Record %s fields: %s", record_id, list(fields.keys()))
+    base_image, text_nodes, image_nodes = _get_figma_assets(figma, variant, label)
 
-    # ── Debug: show mapped field values ──────────────────────────────────────
-    log.info("── Field values for rendering ──")
-    for at_field, fig_layer in field_mappings.items():
-        val = fields.get(at_field)
-        log.info("  [%s] → [%s]  =  %r", at_field, fig_layer, val)
-
-    # Skip if trigger not set
-    if not fields.get(at.trigger_field):
-        log.info("Record %s trigger not set – skipping.", record_id)
-        return
-
-    # ── 2 & 3. Figma assets (cached) ─────────────────────────────────────────
-    figma = FigmaClient(api_key=fig.api_key, file_key=fig.file_key)
-    base_image, text_nodes, image_nodes = _get_figma_assets(
-        figma, fig.frame_node_id, fig.export_scale
-    )
-
-    # ── 4. Download photos ────────────────────────────────────────────────────
+    # ── Photos ────────────────────────────────────────────────────────────────
     photo_images = _get_photo_images(fields, image_field_mappings)
 
-    # ── 5. Render ─────────────────────────────────────────────────────────────
+    # ── Render ────────────────────────────────────────────────────────────────
     jpeg_bytes = build_jpeg(
         base_image=base_image,
         record_fields=fields,
@@ -125,35 +127,115 @@ def run_pipeline(settings: Settings, record_id: str) -> None:
         field_mappings=field_mappings,
         image_field_mappings=image_field_mappings,
         photo_images=photo_images,
-        scale=fig.export_scale,
+        font_map=template.font_map,
+        font_overrides=template.font_overrides,
+        erase_placeholders=template.erase_placeholders,
+        scale=variant.figma_export_scale,
     )
-    log.info("Rendered JPEG  size=%d bytes", len(jpeg_bytes))
+    log.info("[%s] Rendered JPEG  size=%d bytes", label, len(jpeg_bytes))
 
-    # ── 6. Clear old attachment + upload new one ──────────────────────────────
+    # ── Clear old attachment ──────────────────────────────────────────────────
     try:
         airtable._session.patch(
             f"{airtable._table_url}/{record_id}",
-            json={"fields": {at.attachment_field: []}},
+            json={"fields": {output.attachment_field: []}},
         )
     except Exception as e:
-        log.warning("Could not clear old attachment: %s", e)
+        log.warning("[%s] Could not clear old attachment: %s", label, e)
 
+    # ── Upload ────────────────────────────────────────────────────────────────
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename  = f"design_{record_id}_{timestamp}.jpg"
+    filename  = f"{output.name.lower().replace(' ', '_')}_{record_id}_{timestamp}.jpg"
     airtable.upload_attachment(
         record_id=record_id,
-        attachment_field=at.attachment_field,
+        attachment_field=output.attachment_field,
         image_bytes=jpeg_bytes,
         filename=filename,
     )
-    log.info("✓ Design uploaded  record=%s  file=%s", record_id, filename)
+    log.info("[%s] ✓ Uploaded  record=%s  field=%s", label, record_id, output.attachment_field)
 
-    # ── 7. Uncheck trigger field ──────────────────────────────────────────────
-    try:
-        airtable._session.patch(
-            f"{airtable._table_url}/{record_id}",
-            json={"fields": {at.trigger_field: False}},
+
+def run_pipeline(settings: Settings, template: TemplateConfig, record_id: str) -> None:
+    """End-to-end pipeline for one record — processes all outputs."""
+    log.info("[%s] Processing record %s", template.name, record_id)
+
+    # ── 1. Fetch record ───────────────────────────────────────────────────────
+    airtable = AirtableClient(
+        api_key=settings.airtable_api_key,
+        base_id=template.airtable_base_id,
+        table_name=template.airtable_table_name,
+        imgbb_key=settings.airtable_imgbb_api_key,
+    )
+    fields = airtable.get_fields(record_id)
+
+    # Skip if trigger not set
+    trigger_val = fields.get(template.airtable_trigger_field)
+    if template.airtable_trigger_value:
+        # Single-select mode — check for exact value match
+        if trigger_val != template.airtable_trigger_value:
+            log.info("[%s] Trigger field is '%s', expected '%s' — skipping",
+                     template.name, trigger_val, template.airtable_trigger_value)
+            return
+    else:
+        # Checkbox mode — check truthy
+        if not trigger_val:
+            log.info("[%s] Trigger not set on %s — skipping", template.name, record_id)
+            return
+
+    # Log field values once (shared across all outputs)
+    log.info("[%s] Field values:", template.name)
+    for at_field, fig_layer in template.field_mappings.items():
+        val = fields.get(at_field)
+        if isinstance(val, list):
+            val = val[0] if val else ""
+        log.info("  %s → %s = %r", at_field, fig_layer, val)
+
+    # ── 2. Determine which outputs to run ─────────────────────────────────────
+    outputs = template.selected_outputs(fields)
+    if not outputs:
+        log.info("[%s] No outputs selected for record %s — skipping", template.name, record_id)
+        return
+    log.info("[%s] Generating %d output(s): %s",
+             template.name, len(outputs), [o.name for o in outputs])
+
+    errors = []
+    for output in outputs:
+        try:
+            _process_output(airtable, settings, template, output, fields, record_id)
+        except Exception as exc:
+            log.error("[%s › %s] Failed: %s", template.name, output.name, exc)
+            errors.append((output.name, exc))
+
+    # ── 3. Reset trigger field (even if some outputs failed) ─────────────────
+    reset_value: str | bool
+    if template.airtable_trigger_value:
+        # Single-select: set to the reset value if specified, otherwise leave it
+        if not template.airtable_trigger_reset_value:
+            log.info("[%s] No trigger_reset_value set — leaving status unchanged", template.name)
+        else:
+            reset_value = template.airtable_trigger_reset_value
+            try:
+                airtable._session.patch(
+                    f"{airtable._table_url}/{record_id}",
+                    json={"fields": {template.airtable_trigger_field: reset_value}},
+                )
+                log.info("[%s] Reset trigger field to '%s'", template.name, reset_value)
+            except Exception as e:
+                log.warning("[%s] Could not reset trigger field: %s", template.name, e)
+    else:
+        # Checkbox: uncheck it
+        try:
+            airtable._session.patch(
+                f"{airtable._table_url}/{record_id}",
+                json={"fields": {template.airtable_trigger_field: False}},
+            )
+        except Exception as e:
+            log.warning("[%s] Could not uncheck trigger: %s", template.name, e)
+
+    if errors:
+        failed = ", ".join(name for name, _ in errors)
+        raise RuntimeError(
+            f"[{template.name}] {len(errors)} output(s) failed: {failed}"
         )
-        log.info("Auto-unchecked '%s'", at.trigger_field)
-    except Exception as e:
-        log.warning("Could not uncheck trigger field: %s", e)
+
+    log.info("[%s] ✓ All outputs complete for record %s", template.name, record_id)

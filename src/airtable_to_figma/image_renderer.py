@@ -38,37 +38,85 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 log = logging.getLogger(__name__)
 
 # Bundled fallback font (always available in Python ≥ 3.x via Pillow)
-_DEFAULT_FONT_SIZE = 16
 _FALLBACK_FONT = ImageFont.load_default()
+
+# Fonts directory: <project_root>/fonts/
+_FONTS_DIR = Path(__file__).parent.parent.parent / "fonts"
+
+# Maps Figma's fontWeight number → the word Figma appends to the family name
+# e.g. fontFamily="Space Grotesk", fontWeight=700 → "Space Grotesk Bold"
+_WEIGHT_LABELS: dict[int, str] = {
+    100: "Thin",
+    200: "ExtraLight",
+    300: "Light",
+    400: "",          # Regular — Figma usually omits the suffix
+    500: "Medium",
+    600: "SemiBold",
+    700: "Bold",
+    800: "ExtraBold",
+    900: "Black",
+}
+
+
+def _weight_label(weight: int) -> str:
+    """Return the display-name suffix for a CSS font-weight number."""
+    if weight in _WEIGHT_LABELS:
+        return _WEIGHT_LABELS[weight]
+    # Round to nearest 100
+    rounded = round(weight / 100) * 100
+    return _WEIGHT_LABELS.get(rounded, "")
+
+
+_SYSTEM_FONTS = [
+    "/Library/Fonts/Arial.ttf",
+    "/System/Library/Fonts/Helvetica.ttc",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "C:/Windows/Fonts/arial.ttf",
+]
+
+
+def _resolve_font_path(font_path: str) -> Path | None:
+    """Resolve a font path — absolute, relative-to-fonts-dir, or relative-to-module."""
+    p = Path(font_path)
+    if p.is_absolute():
+        return p if p.exists() else None
+    # Try relative to fonts/ directory first (the preferred location)
+    in_fonts = _FONTS_DIR / font_path
+    if in_fonts.exists():
+        return in_fonts
+    # Try relative to the module file itself (legacy behaviour)
+    in_module = Path(__file__).parent / font_path
+    if in_module.exists():
+        return in_module
+    return None
 
 
 def _load_font(font_path: str | None, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load a TrueType font, falling back to Pillow's built-in default."""
+    """
+    Load a TrueType font at the given size.
+
+    Resolution order:
+      1. font_path if provided (absolute, relative to fonts/, or relative to module)
+      2. System fonts (Arial / Helvetica / DejaVu)
+      3. Pillow built-in default (last resort — renders correctly but looks basic)
+    """
     if font_path:
-        # Resolve relative paths from the script's own directory
-        resolved = font_path if os.path.isabs(font_path) else os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), font_path
-        )
-        if os.path.exists(resolved):
+        resolved = _resolve_font_path(font_path)
+        if resolved:
             try:
-                return ImageFont.truetype(resolved, size)
+                return ImageFont.truetype(str(resolved), size)
             except Exception as exc:
-                log.warning("Could not load font %s: %s – using default", resolved, exc)
+                log.warning("Could not load font %s: %s", resolved, exc)
         else:
-            log.warning("Font file not found: %s", resolved)
-    # Try common system fonts as secondary fallback
-    system_fonts = [
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-    ]
-    for sf in system_fonts:
+            log.warning("Font file not found: %s (looked in fonts/ and module dir)", font_path)
+
+    for sf in _SYSTEM_FONTS:
         if os.path.exists(sf):
             try:
                 return ImageFont.truetype(sf, size)
             except Exception:
                 continue
+
     return _FALLBACK_FONT
 
 
@@ -82,8 +130,14 @@ class ImageRenderer:
         Output of FigmaClient.get_text_nodes() – positions, sizes, styles.
     field_mappings : dict[str, str]
         { "Airtable Field Name": "Figma Layer Name" }
+    font_map : dict[str, str]
+        { "Figma font family name": "path/to/font.ttf" }
+        Looked up using the font_family read from each Figma text node.
+        Paths are relative to the fonts/ directory.
+        Example: { "Space Grotesk Bold": "SpaceGrotesk-Bold.ttf" }
     font_overrides : dict[str, dict]
         { "Figma Layer Name": { "font_path": ..., "font_size": ..., "color": [...] } }
+        Per-layer overrides — take priority over font_map.
     scale : float
         The export scale used when the base image was exported from Figma.
     """
@@ -94,14 +148,18 @@ class ImageRenderer:
         image_nodes: list[dict[str, Any]],
         field_mappings: dict[str, str],
         image_field_mappings: dict[str, str] | None = None,
+            font_map: dict[str, str] | None = None,
         font_overrides: dict[str, dict] | None = None,
+        erase_placeholders: bool = True,
         scale: float = 2.0,
     ):
         self.text_nodes  = {n["name"]: n for n in text_nodes}   # keyed by layer name
         self.image_nodes = {n["name"]: n for n in image_nodes}
         self.field_mappings       = field_mappings
         self.image_field_mappings = image_field_mappings or {}
-        self.font_overrides = font_overrides or {}
+        self.font_map           = font_map or {}
+        self.font_overrides     = font_overrides or {}
+        self.erase_placeholders = erase_placeholders
         self.scale = scale
 
     # ── Public ──────────────────────────────────────────────────────────────────
@@ -190,9 +248,51 @@ class ImageRenderer:
     ):
         overrides = self.font_overrides.get(layer_name, {})
 
-        # Font
+        # Font size
         font_size = int(overrides.get("font_size", node["font_size"]) * self.scale)
-        font_path = overrides.get("font_path")
+
+        # Font path — resolution order:
+        #   1. Explicit font_path in font_overrides  (highest priority)
+        #   2. weight shorthand in font_overrides — looks up "{family} Bold" etc. in font_map
+        #   3. font_map lookup by Figma font family name (e.g. "Space Grotesk Bold")
+        #   4. font_map lookup by PostScript name (e.g. "SpaceGrotesk-Bold")
+        #   5. System font / Pillow fallback
+        font_path: str | None = overrides.get("font_path")
+
+        if not font_path and "weight" in overrides:
+            font_path = self._font_path_for_weight(
+                base_family=node.get("font_family", ""),
+                weight=overrides["weight"],
+            )
+
+        if not font_path:
+            family      = node.get("font_family", "")
+            post_script = node.get("font_post_script", "")
+            weight_num  = node.get("font_weight", 400)
+
+            # Build the combined key Figma-style: "Space Grotesk Bold"
+            # Figma returns fontFamily="Space Grotesk" and fontWeight=700 separately,
+            # so we reconstruct the display name to match font_map keys.
+            weight_label = _weight_label(weight_num)
+            family_with_weight = f"{family} {weight_label}".strip() if weight_label else family
+
+            font_path = (
+                self.font_map.get(family_with_weight)   # "Space Grotesk Bold"
+                or self.font_map.get(post_script)        # "SpaceGrotesk-Bold"
+                or self.font_map.get(family)             # "Space Grotesk" (fallback)
+            )
+            if font_path:
+                log.info(
+                    "Layer '%s': font '%s' (weight=%d) → %s",
+                    layer_name, family_with_weight, weight_num, font_path,
+                )
+            else:
+                log.warning(
+                    "Layer '%s': no font_map entry for '%s' / '%s' / '%s' — using system fallback. "
+                    "Add an entry to font_map in templates.yaml.",
+                    layer_name, family_with_weight, post_script, family,
+                )
+
         font = _load_font(font_path, font_size)
 
         # Color
@@ -203,15 +303,15 @@ class ImageRenderer:
         py = (node["y"] - node["frame_y"]) * self.scale
         max_w = node["width"] * self.scale
 
-        # ── Erase the old template text by painting a background rect ───────────
-        # We paint a slightly expanded rectangle in white-ish to cover placeholder.
-        # If your template has a non-white background behind text, adjust this.
-        # A better approach: keep Figma template text layers empty / invisible.
-        bg_color = self._sample_background(draw._image, px, py, max_w, node["height"] * self.scale)
-        draw.rectangle(
-            [px, py, px + max_w, py + node["height"] * self.scale],
-            fill=bg_color,
-        )
+        # ── Erase placeholder text (only when erase_placeholders=True) ──────────
+        # Skip this when Figma template text layers are set to 0% opacity —
+        # that's the recommended approach as it avoids background colour bleeding.
+        if self.erase_placeholders:
+            bg_color = self._sample_background(draw._image, px, py, max_w, node["height"] * self.scale)
+            draw.rectangle(
+                [px, py, px + max_w, py + node["height"] * self.scale],
+                fill=bg_color,
+            )
 
         # ── Word-wrap ────────────────────────────────────────────────────────────
         avg_char_px = font_size * 0.55  # rough estimate
@@ -242,6 +342,43 @@ class ImageRenderer:
 
             draw.text((x_cursor, y_cursor), line, font=font, fill=color)
             y_cursor += line_h
+
+    def _font_path_for_weight(self, base_family: str, weight: str) -> str | None:
+        """
+        Look up a font file from font_map using a weight shorthand.
+
+        weight values: "bold", "semibold", "medium", "regular", "light"
+
+        Tries variations like "Space Grotesk Bold", "Space Grotesk SemiBold", etc.
+        Falls back to the base family name if no weighted variant is found.
+        """
+        weight_labels: dict[str, list[str]] = {
+            "bold":     ["Bold"],
+            "semibold": ["SemiBold", "Semi Bold", "DemiBold"],
+            "medium":   ["Medium"],
+            "regular":  ["Regular", ""],
+            "light":    ["Light"],
+            "thin":     ["Thin", "ExtraLight"],
+            "black":    ["Black", "ExtraBold"],
+            "italic":   ["Italic"],
+        }
+        # Strip any existing weight suffix from the base family to get the root name
+        # e.g. "Space Grotesk Bold" → "Space Grotesk"
+        weight_suffixes = [label for labels in weight_labels.values() for label in labels if label]
+        root_family = base_family
+        for suffix in sorted(weight_suffixes, key=len, reverse=True):
+            if base_family.endswith(f" {suffix}"):
+                root_family = base_family[: -len(suffix) - 1].strip()
+                break
+
+        for label in weight_labels.get(weight.lower(), [weight.capitalize()]):
+            candidate = f"{root_family} {label}".strip() if label else root_family
+            if candidate in self.font_map:
+                log.debug("Weight '%s' → font_map key '%s'", weight, candidate)
+                return self.font_map[candidate]
+
+        # Last resort: return whatever the base family maps to
+        return self.font_map.get(base_family)
 
     @staticmethod
     def _sample_background(
@@ -283,7 +420,9 @@ def build_jpeg(
     field_mappings: dict[str, str],
     image_field_mappings: dict[str, str] | None = None,
     photo_images: dict[str, Image.Image] | None = None,
+    font_map: dict[str, str] | None = None,
     font_overrides: dict[str, dict] | None = None,
+    erase_placeholders: bool = True,
     scale: float = 2.0,
 ) -> bytes:
     """Convenience function – create an ImageRenderer and render in one call."""
@@ -292,7 +431,9 @@ def build_jpeg(
         image_nodes=image_nodes,
         field_mappings=field_mappings,
         image_field_mappings=image_field_mappings,
+        font_map=font_map,
         font_overrides=font_overrides,
+        erase_placeholders=erase_placeholders,
         scale=scale,
     )
     return renderer.render(base_image, record_fields, photo_images=photo_images)

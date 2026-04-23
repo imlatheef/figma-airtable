@@ -1,0 +1,122 @@
+# templates.yaml
+# ──────────────
+# Define one entry per design workflow.
+# This file is safe to commit — no API keys or secrets here.
+# API keys live in .env only.
+
+templates:
+
+  # ── PlatformCon Talk Assets ──────────────────────────────────────────────
+  #
+  # In Airtable, add:
+  #   • "Generate"          — Multi-select with options:
+  #                           OpenGraph, LinkedIn Social, Speaker Social
+  #   • "Ready for Design"  — Checkbox (trigger)
+  #   • "Session open graph" / "LinkedIn Social" / "Speaker Social Card"
+  #                         — Attachment fields (one per output)
+  #
+  # The team picks which images they want from the "Generate" multi-select,
+  # then checks "Ready for Design". Only the selected outputs are generated.
+  # Leave selection_field blank to always generate all outputs.
+
+  - name: "PlatformCon Talk Assets"
+
+    airtable_base_id:       "apptbf0DwaH2ObxHS"
+    airtable_table_name:    "All Sessions"
+    erase_placeholders:     false   # text layers in Figma set to 0% opacity
+
+    # Single-select trigger — fires when field equals trigger_value.
+    # Use airtable_trigger_value for single-select fields (like a status column).
+    # Leave airtable_trigger_value blank to use a checkbox field instead.
+    airtable_trigger_field:       "Design status"
+    airtable_trigger_value:       "Push to publishing"
+    airtable_trigger_reset_value: "Ready for publishing"   # set after generation
+
+    # Airtable multi-select field that controls which outputs to run.
+    # Values must match the selection_value of each output exactly.
+    selection_field: "Generate"
+
+    # Font map — Figma font family name → file in the fonts/ directory.
+    # To find the exact name: in Figma, click a text layer → inspect the font
+    # name shown in the right panel (e.g. "Space Grotesk Bold").
+    # Drop the TTF/OTF file into the fonts/ folder and reference it here.
+    font_map:
+      "Space Grotesk Bold":    "SpaceGrotesk-Bold.ttf"
+      "Space Grotesk":         "SpaceGrotesk-Regular.ttf"
+      "Space Grotesk Medium":  "SpaceGrotesk-Medium.ttf"
+
+    # Shared mappings — layer names must exist in ALL output frames
+    field_mappings:
+      "Session Title":     "Title"
+      "Speaker 1 Name":    "Speaker name"
+      "Speaker 1 tagline": "Job"
+
+    image_field_mappings:
+      "Speaker 1 picture": "Photo"
+
+    outputs:
+      - name: "OpenGraph"
+        selection_value:     "Opengraph"          # must match Airtable option exactly
+        attachment_field:    "Opengraph"
+        figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id: "7-622"
+        figma_export_scale:  2.0
+
+      - name: "LinkedIn Social"
+        selection_value:     "LI-social"
+        attachment_field:    "LI-Social"
+        figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id: "5-57"                # ← replace with your frame node ID
+        figma_export_scale:  2.0
+
+      - name: "Speaker Social"
+        selection_value:     "Speaker Social"
+        attachment_field:    "Speaker Social Card"
+        figma_file_key:      "Q22JlTzSIGkKuYJGvOOqvQ"
+        figma_frame_node_id: "3:8"                # ← replace with your frame node ID
+        figma_export_scale:  2.0
+
+  - name: "Webinars"
+
+    airtable_base_id:       "appU6vYAsEYaZ7hNL"
+    airtable_table_name:    "Events"
+    erase_placeholders:     false   # text layers in Figma set to 0% opacity
+
+    # Single-select trigger — fires when field equals trigger_value.
+    # Use airtable_trigger_value for single-select fields (like a status column).
+    # Leave airtable_trigger_value blank to use a checkbox field instead.
+    airtable_trigger_field:       "Push to design"
+    airtable_trigger_value:       "Push to design"
+    airtable_trigger_reset_value: "Ready for publishing"   # set after generation
+
+    # Airtable multi-select field that controls which outputs to run.
+    # Values must match the selection_value of each output exactly.
+    selection_field: "Generate"
+
+    # Font map — Figma font family name → file in the fonts/ directory.
+    # To find the exact name: in Figma, click a text layer → inspect the font
+    # name shown in the right panel (e.g. "Space Grotesk Bold").
+    # Drop the TTF/OTF file into the fonts/ folder and reference it here.
+    font_map:
+      "Space Grotesk Bold":    "SpaceGrotesk-Bold.ttf"
+      "Space Grotesk":         "SpaceGrotesk-Regular.ttf"
+      "Space Grotesk Medium":  "SpaceGrotesk-Medium.ttf"
+
+    # Shared mappings — layer names must exist in ALL output frames
+    field_mappings:
+      "Event title":     "title"
+      "Speaker 1":    "Speaker1-name"
+      "Speaker 1 job title and company": "Speaker1-job"
+      "Start date": "date"
+
+    image_field_mappings:
+      "Speaker 1 profile picture": "Photo"
+
+    outputs:
+      - name: "Opengraph"
+        selection_value:     "Open graph webinar"          # must match Airtable option exactly
+        attachment_field:    "Open graph"
+        figma_file_key:      "5sk4jE0lLfLndMBzeAwu6u"
+        figma_frame_node_id: "3-14730"
+        figma_export_scale:  2.0
+
