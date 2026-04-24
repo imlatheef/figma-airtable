@@ -20,6 +20,7 @@ import requests
 from PIL import Image
 
 from airtable_to_figma.airtable_client import AirtableClient
+from airtable_to_figma.background_remover import remove_background_if_needed
 from airtable_to_figma.figma_client import FigmaClient
 from airtable_to_figma.image_renderer import build_jpeg
 from airtable_to_figma.settings import Settings
@@ -67,6 +68,7 @@ def _download_photo(url: str) -> Image.Image | None:
 def _get_photo_images(
     fields: dict[str, Any],
     image_field_mappings: dict[str, str],
+    remove_bg: bool = False,
 ) -> dict[str, Image.Image]:
     photo_images: dict[str, Image.Image] = {}
     for airtable_field, figma_layer in image_field_mappings.items():
@@ -78,6 +80,8 @@ def _get_photo_images(
             continue
         img = _download_photo(photo_url)
         if img:
+            if remove_bg:
+                img = remove_background_if_needed(img)
             photo_images[figma_layer] = img
             log.info("Downloaded photo for layer '%s'", figma_layer)
     return photo_images
@@ -116,7 +120,7 @@ def _process_output(
     base_image, text_nodes, image_nodes = _get_figma_assets(figma, variant, label)
 
     # ── Photos ────────────────────────────────────────────────────────────────
-    photo_images = _get_photo_images(fields, image_field_mappings)
+    photo_images = _get_photo_images(fields, image_field_mappings, remove_bg=template.remove_background)
 
     # ── Render ────────────────────────────────────────────────────────────────
     jpeg_bytes = build_jpeg(

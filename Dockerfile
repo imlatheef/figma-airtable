@@ -36,9 +36,19 @@ COPY fonts/ fonts/
 COPY templates.yaml ./
 
 # Put the venv on PATH
+# U2NET_HOME tells rembg where to store/find the model
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    U2NET_HOME=/app/.u2net
+
+# Pre-download the rembg U2Net model at build time so it's baked into the
+# image and never needs to download at runtime (~170MB, cached in /app/.u2net)
+RUN python -c "\
+from rembg import new_session; \
+print('Downloading U2Net model...'); \
+new_session('u2net'); \
+print('Model ready.')"
 
 # Run as non-root for security
 RUN useradd --create-home --no-log-init appuser && chown -R appuser /app
