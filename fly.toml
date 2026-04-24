@@ -1,6 +1,9 @@
 app            = "airtable-to-figma"
 primary_region = "lhr"
 
+[build]
+  dockerfile = "Dockerfile"
+
 [env]
   PYTHONUNBUFFERED = "1"
 
