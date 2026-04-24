@@ -56,6 +56,8 @@ templates:
     image_field_mappings:
       "Speaker 1 picture": "Photo"
 
+      remove_background: truegit add -A
+
     outputs:
       - name: "OpenGraph"
         selection_value:     "Opengraph"          # must match Airtable option exactly

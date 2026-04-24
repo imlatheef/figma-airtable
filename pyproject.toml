@@ -10,6 +10,8 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "pyyaml>=6.0",
     "colorlog>=6.8.2",
+    "rembg>=2.0.0",
+    "onnxruntime>=1.16.0",
 ]
 
 [project.scripts]

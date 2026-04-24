@@ -195,6 +195,11 @@ class TemplateConfig(BaseModel):
     # text — this causes visible boxes if the background is non-uniform.
     erase_placeholders: bool = True
 
+    # Set remove_background to True to automatically remove the background
+    # from speaker/profile photos before compositing onto the template.
+    # Uses the rembg U2Net AI model. Skips photos that are already transparent.
+    remove_background: bool = False
+
     # ── Fonts ─────────────────────────────────────────────────────────────────
     # font_map: maps Figma font family names → font file paths (relative to fonts/)
     #   e.g. { "Space Grotesk Bold": "SpaceGrotesk-Bold.ttf" }
