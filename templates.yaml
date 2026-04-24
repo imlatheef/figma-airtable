@@ -29,7 +29,9 @@ templates:
     # Use airtable_trigger_value for single-select fields (like a status column).
     # Leave airtable_trigger_value blank to use a checkbox field instead.
     airtable_trigger_field:       "Design status"
-    airtable_trigger_value:       "Push to publishing"
+    airtable_trigger_pending_value: "Pending"
+    airtable_trigger_working_value: "Working"
+    airtable_trigger_value:       "Push to design"
     airtable_trigger_reset_value: "Ready for publishing"   # set after generation
 
     # Airtable multi-select field that controls which outputs to run.
