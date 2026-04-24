@@ -150,6 +150,13 @@ class TemplateConfig(BaseModel):
     # If blank, the trigger fires when the field is truthy (checkbox = checked).
     airtable_trigger_value: str = ""
 
+    # Intermediate statuses written during processing (optional).
+    # Set these to match your Airtable single-select options.
+    # e.g. airtable_trigger_pending_value: "Pending"
+    #      airtable_trigger_working_value: "Working"
+    airtable_trigger_pending_value: str = ""
+    airtable_trigger_working_value: str = ""
+
     # After processing, set the trigger field to this value.
     # For checkboxes: leave blank (will be unchecked automatically).
     # For single-select: set to the status you want after generation,
