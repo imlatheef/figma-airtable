@@ -242,10 +242,20 @@ class ImageRenderer:
         photo_rgb = photo.convert("RGBA")
         photo_rgb = ImageOps.fit(photo_rgb, (pw, ph), method=Image.LANCZOS, centering=(0.5, 0.5))
 
-        # If the Figma node is an ELLIPSE, apply a circular mask
+        # Apply a rounded-rectangle (or full circle) mask when cornerRadius > 0
+        corner_radius = node.get("corner_radius", 0) or 0
         if node.get("shape") == "ELLIPSE":
+            # Full circle/ellipse
+            corner_radius = min(pw, ph) / 2
+        if corner_radius > 0:
+            # Scale the corner radius to match the exported image resolution
+            scaled_r = int(corner_radius * self.scale)
+            # Clamp so it never exceeds half the shortest side
+            scaled_r = min(scaled_r, pw // 2, ph // 2)
             mask = Image.new("L", (pw, ph), 0)
-            ImageDraw.Draw(mask).ellipse([0, 0, pw - 1, ph - 1], fill=255)
+            ImageDraw.Draw(mask).rounded_rectangle(
+                [0, 0, pw - 1, ph - 1], radius=scaled_r, fill=255
+            )
             photo_rgb.putalpha(mask)
 
         canvas.paste(photo_rgb, (px, py), mask=photo_rgb.split()[3])

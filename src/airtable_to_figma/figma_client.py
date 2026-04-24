@@ -108,16 +108,24 @@ class FigmaClient:
         # Skip the root frame itself and text nodes
         if node_type in IMAGE_TYPES and node_type != "TEXT":
             box = node.get("absoluteBoundingBox", {})
+            w = box.get("width", 100)
+            h = box.get("height", 100)
+            # cornerRadius can be a scalar or per-corner array; use scalar here
+            corner_radius = node.get("cornerRadius", 0) or 0
+            # An ELLIPSE is always fully rounded; treat it as cornerRadius = 50%
+            if node_type == "ELLIPSE":
+                corner_radius = min(w, h) / 2
             result.append({
-                "id":      node.get("id", ""),
-                "name":    node.get("name", ""),
-                "x":       box.get("x", 0),
-                "y":       box.get("y", 0),
-                "frame_x": frame_x,
-                "frame_y": frame_y,
-                "width":   box.get("width", 100),
-                "height":  box.get("height", 100),
-                "shape":   node_type,
+                "id":            node.get("id", ""),
+                "name":          node.get("name", ""),
+                "x":             box.get("x", 0),
+                "y":             box.get("y", 0),
+                "frame_x":       frame_x,
+                "frame_y":       frame_y,
+                "width":         w,
+                "height":        h,
+                "shape":         node_type,
+                "corner_radius": corner_radius,
             })
         for child in node.get("children", []):
             self._walk_images(child, result, frame_x, frame_y)
