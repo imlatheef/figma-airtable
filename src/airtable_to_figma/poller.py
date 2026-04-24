@@ -10,6 +10,7 @@ Run:  python -m airtable_to_figma.poller
 
 from __future__ import annotations
 
+import argparse
 import logging
 import time
 
@@ -61,7 +62,35 @@ def get_pending_records(
     return resp.json().get("records", [])
 
 
+def _poll_once(settings: Settings, templates: list[TemplateConfig]) -> None:
+    """Check all templates once and process any pending records."""
+    for template in templates:
+        try:
+            records = get_pending_records(settings, template)
+            if records:
+                log.info("[%s] Found %d record(s) to process", template.name, len(records))
+                for record in records:
+                    rid = record.get("id")
+                    if rid:
+                        try:
+                            run_pipeline(settings, template, rid)
+                        except Exception as exc:
+                            log.error("[%s] Failed to process %s: %s", template.name, rid, exc)
+            else:
+                log.info("[%s] No pending records.", template.name)
+        except Exception as exc:
+            log.error("[%s] Poll error: %s", template.name, exc)
+
+
 def run_poller() -> None:
+    parser = argparse.ArgumentParser(description="Airtable → Figma poller")
+    parser.add_argument(
+        "--run-once",
+        action="store_true",
+        help="Check all templates once and exit (used by GitHub Actions cron)",
+    )
+    args = parser.parse_args()
+
     _setup_logging()
 
     try:
@@ -78,46 +107,23 @@ def run_poller() -> None:
         log.error("Copy templates.yaml.example to templates.yaml and fill in your templates.")
         raise SystemExit(1)
 
-    interval = settings.poll_interval
-
     log.info("=" * 60)
-    log.info("  Airtable → Figma Poller  (every %ds)", interval)
+    log.info("  Airtable → Figma Poller")
     log.info("=" * 60)
     log.info("Loaded %d template(s):", len(templates))
     for t in templates:
         log.info("  • %s", t)
-    log.info("Press Ctrl+C to stop.\n")
+
+    if args.run_once:
+        log.info("Running once then exiting (--run-once mode).\n")
+        _poll_once(settings, templates)
+        return
+
+    interval = settings.poll_interval
+    log.info("Polling every %ds. Press Ctrl+C to stop.\n", interval)
 
     while True:
-        for template in templates:
-            try:
-                records = get_pending_records(settings, template)
-                if records:
-                    log.info(
-                        "[%s] Found %d record(s) to process",
-                        template.name, len(records),
-                    )
-                    for record in records:
-                        rid = record.get("id")
-                        if rid:
-                            try:
-                                run_pipeline(settings, template, rid)
-                            except Exception as exc:
-                                log.error(
-                                    "[%s] Failed to process %s: %s",
-                                    template.name, rid, exc,
-                                )
-                else:
-                    log.info(
-                        "[%s] No pending records. Next check in %ds…",
-                        template.name, interval,
-                    )
-            except Exception as exc:
-                log.error(
-                    "[%s] Poll error: %s  (retrying in %ds)",
-                    template.name, exc, interval,
-                )
-
+        _poll_once(settings, templates)
         time.sleep(interval)
 
 
