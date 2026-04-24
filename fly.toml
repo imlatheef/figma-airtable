@@ -10,3 +10,11 @@ primary_region = "fra"
 [[vm]]
   size   = "shared-cpu-1x"
   memory = "512mb"
+
+[processes]
+  app = "python -m airtable_to_figma.poller"
+
+[[services]]
+  processes = ["app"]
+  auto_stop_machines = false
+  min_machines_running = 1
