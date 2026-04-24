@@ -7,9 +7,6 @@ primary_region = "fra"
 [env]
   PYTHONUNBUFFERED = "1"
 
-[restart]
-  policy = "always"
-
 [[vm]]
   size   = "shared-cpu-1x"
   memory = "1gb"
