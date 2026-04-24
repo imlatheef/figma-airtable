@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import signal
+import sys
 import time
 
 import colorlog
@@ -122,9 +124,25 @@ def run_poller() -> None:
     interval = settings.poll_interval
     log.info("Polling every %ds. Press Ctrl+C to stop.\n", interval)
 
+    # Handle SIGTERM gracefully (Fly.io sends this on deploys/stops)
+    def _handle_sigterm(sig, frame):
+        log.info("Received SIGTERM — shutting down cleanly.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+
     while True:
-        _poll_once(settings, templates)
-        time.sleep(interval)
+        try:
+            _poll_once(settings, templates)
+        except Exception as exc:
+            # Never let an unhandled exception kill the process —
+            # log it and keep going.
+            log.error("Unexpected error in poll loop: %s", exc, exc_info=True)
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            log.info("Interrupted — shutting down.")
+            sys.exit(0)
 
 
 if __name__ == "__main__":

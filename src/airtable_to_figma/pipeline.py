@@ -155,6 +155,23 @@ def _process_output(
     log.info("[%s] ✓ Uploaded  record=%s  field=%s", label, record_id, output.attachment_field)
 
 
+def _set_status(
+    airtable: AirtableClient,
+    template: TemplateConfig,
+    record_id: str,
+    value: str | bool,
+) -> None:
+    """Write a value to the trigger field — used for status progression."""
+    try:
+        airtable._session.patch(
+            f"{airtable._table_url}/{record_id}",
+            json={"fields": {template.airtable_trigger_field: value}},
+        )
+        log.info("[%s] Status → '%s'", template.name, value)
+    except Exception as e:
+        log.warning("[%s] Could not update status to '%s': %s", template.name, value, e)
+
+
 def run_pipeline(settings: Settings, template: TemplateConfig, record_id: str) -> None:
     """End-to-end pipeline for one record — processes all outputs."""
     log.info("[%s] Processing record %s", template.name, record_id)
@@ -171,16 +188,18 @@ def run_pipeline(settings: Settings, template: TemplateConfig, record_id: str) -
     # Skip if trigger not set
     trigger_val = fields.get(template.airtable_trigger_field)
     if template.airtable_trigger_value:
-        # Single-select mode — check for exact value match
         if trigger_val != template.airtable_trigger_value:
             log.info("[%s] Trigger field is '%s', expected '%s' — skipping",
                      template.name, trigger_val, template.airtable_trigger_value)
             return
     else:
-        # Checkbox mode — check truthy
         if not trigger_val:
             log.info("[%s] Trigger not set on %s — skipping", template.name, record_id)
             return
+
+    # ── 2. Mark as Pending (record queued, not yet rendering) ────────────────
+    if template.airtable_trigger_pending_value:
+        _set_status(airtable, template, record_id, template.airtable_trigger_pending_value)
 
     # Log field values once (shared across all outputs)
     log.info("[%s] Field values:", template.name)
@@ -190,13 +209,17 @@ def run_pipeline(settings: Settings, template: TemplateConfig, record_id: str) -
             val = val[0] if val else ""
         log.info("  %s → %s = %r", at_field, fig_layer, val)
 
-    # ── 2. Determine which outputs to run ─────────────────────────────────────
+    # ── 3. Determine which outputs to run ────────────────────────────────────
     outputs = template.selected_outputs(fields)
     if not outputs:
         log.info("[%s] No outputs selected for record %s — skipping", template.name, record_id)
         return
     log.info("[%s] Generating %d output(s): %s",
              template.name, len(outputs), [o.name for o in outputs])
+
+    # ── 4. Mark as Working (actively rendering) ───────────────────────────────
+    if template.airtable_trigger_working_value:
+        _set_status(airtable, template, record_id, template.airtable_trigger_working_value)
 
     errors = []
     for output in outputs:
@@ -206,31 +229,15 @@ def run_pipeline(settings: Settings, template: TemplateConfig, record_id: str) -
             log.error("[%s › %s] Failed: %s", template.name, output.name, exc)
             errors.append((output.name, exc))
 
-    # ── 3. Reset trigger field (even if some outputs failed) ─────────────────
-    reset_value: str | bool
+    # ── 5. Reset trigger field to final status ────────────────────────────────
     if template.airtable_trigger_value:
-        # Single-select: set to the reset value if specified, otherwise leave it
         if not template.airtable_trigger_reset_value:
             log.info("[%s] No trigger_reset_value set — leaving status unchanged", template.name)
         else:
-            reset_value = template.airtable_trigger_reset_value
-            try:
-                airtable._session.patch(
-                    f"{airtable._table_url}/{record_id}",
-                    json={"fields": {template.airtable_trigger_field: reset_value}},
-                )
-                log.info("[%s] Reset trigger field to '%s'", template.name, reset_value)
-            except Exception as e:
-                log.warning("[%s] Could not reset trigger field: %s", template.name, e)
+            _set_status(airtable, template, record_id, template.airtable_trigger_reset_value)
     else:
         # Checkbox: uncheck it
-        try:
-            airtable._session.patch(
-                f"{airtable._table_url}/{record_id}",
-                json={"fields": {template.airtable_trigger_field: False}},
-            )
-        except Exception as e:
-            log.warning("[%s] Could not uncheck trigger: %s", template.name, e)
+        _set_status(airtable, template, record_id, False)
 
     if errors:
         failed = ", ".join(name for name, _ in errors)
