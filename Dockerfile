@@ -46,8 +46,8 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # image and never needs to download at runtime (~170MB, cached in /app/.u2net)
 RUN python -c "\
 from rembg import new_session; \
-print('Downloading U2Net model...'); \
-new_session('u2net'); \
+print('Downloading U2Net-p (lite) model...'); \
+new_session('u2netp'); \
 print('Model ready.')"
 
 # Run as non-root for security

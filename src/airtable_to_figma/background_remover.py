@@ -41,7 +41,7 @@ def _get_session():
     if _rembg_session is None:
         try:
             from rembg import new_session
-            _rembg_session = new_session("u2net")
+            _rembg_session = new_session("u2netp")
             log.info("rembg: U2Net model loaded")
         except Exception as exc:
             log.warning("rembg not available — background removal disabled: %s", exc)
