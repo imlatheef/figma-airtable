@@ -38,6 +38,8 @@ templates:
     # Values must match the selection_value of each output exactly.
     selection_field: "Generate"
 
+    remove_background: true
+
     # Font map — Figma font family name → file in the fonts/ directory.
     # To find the exact name: in Figma, click a text layer → inspect the font
     # name shown in the right panel (e.g. "Space Grotesk Bold").
@@ -54,9 +56,7 @@ templates:
       "Speaker 1 tagline": "Job"
 
     image_field_mappings:
-      "Speaker 1 picture": "Photo"
-
-      remove_background: truegit add -A
+      "Speaker1": "Photo"
 
     outputs:
       - name: "OpenGraph"
