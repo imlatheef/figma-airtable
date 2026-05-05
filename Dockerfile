@@ -33,7 +33,8 @@ COPY --from=builder /app/.venv .venv/
 # Copy application files
 COPY src/ src/
 COPY fonts/ fonts/
-COPY templates.yaml ./
+# templates.yaml is NOT baked in — upload it manually after each deploy:
+#   cat templates.yaml | fly ssh console -a airtable-figma-automation -C "dd of=/app/templates.yaml"
 
 # Put the venv on PATH
 # U2NET_HOME tells rembg where to store/find the model
