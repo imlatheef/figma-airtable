@@ -21,8 +21,8 @@ templates:
 
   - name: "PlatformCon Talk Assets"
 
-    airtable_base_id:       "apptbf0DwaH2ObxHS"
-    airtable_table_name:    "All Sessions"
+    airtable_base_id:       "appWCcWlFJyl24qil"
+    airtable_table_name:    "Sessions"
     erase_placeholders:     false   # text layers in Figma set to 0% opacity
 
     # Single-select trigger — fires when field equals trigger_value.
@@ -32,7 +32,7 @@ templates:
     airtable_trigger_pending_value: "Pending"
     airtable_trigger_working_value: "Working"
     airtable_trigger_value:       "Push to design"
-    airtable_trigger_reset_value: "Ready for publishing"   # set after generation
+    airtable_trigger_reset_value: "Ready for publication"   # set after generation
 
     # Airtable multi-select field that controls which outputs to run.
     # Values must match the selection_value of each output exactly.
@@ -51,17 +51,16 @@ templates:
 
     # Shared mappings — layer names must exist in ALL output frames
     field_mappings:
-      "Session Title":     "Title"
-      "Speaker 1 Name":    "Speaker name"
-      "Speaker 1 tagline": "Job"
+      "Talk Title":     "Title"
+      "Name (from Speakers)":    "Speaker name"
 
-    image_field_mappings:
-      "Speaker1": "Photo"
+  ##  image_field_mappings:
+    ## "Speaker1": "Photo"
 
     outputs:
-      - name: "OpenGraph"
+      - name: "Session Open Graph"
         selection_value:     "Opengraph"          # must match Airtable option exactly
-        attachment_field:    "Opengraph"
+        attachment_field:    "Session Open Graph"
         figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
         figma_frame_node_id: "7-622"
         figma_export_scale:  2.0
