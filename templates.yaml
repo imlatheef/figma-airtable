@@ -56,7 +56,7 @@ templates:
       "Tagline (from Speakers)": "Job"
 
     image_field_mappings:
-       "Pic speaker": "Photo"
+       "Pic speaker 1": "Photo1"
 
     outputs:
       - name: "Session Open Graph"
