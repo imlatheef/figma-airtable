@@ -99,15 +99,18 @@ def _process_output(
     label = f"{template.name} › {output.name}"
 
     # ── Resolve variant ───────────────────────────────────────────────────────
-    variant_value = ""
-    if output.variant_field:
-        raw = fields.get(output.variant_field, "")
-        if isinstance(raw, list):
-            raw = raw[0] if raw else ""
-        variant_value = str(raw).strip()
-        log.info("[%s] Variant field '%s' = '%s'", label, output.variant_field, variant_value)
-
-    variant = output.resolve_variant(variant_value, template.name)
+    # Auto-variant takes priority: check if a presence-based field triggers it
+    if output.auto_variant_on_field:
+        variant = output.resolve_auto_variant(fields, template.name)
+    else:
+        variant_value = ""
+        if output.variant_field:
+            raw = fields.get(output.variant_field, "")
+            if isinstance(raw, list):
+                raw = raw[0] if raw else ""
+            variant_value = str(raw).strip()
+            log.info("[%s] Variant field '%s' = '%s'", label, output.variant_field, variant_value)
+        variant = output.resolve_variant(variant_value, template.name)
 
     # ── Merge field mappings ──────────────────────────────────────────────────
     field_mappings, image_field_mappings = template.resolve_field_mappings(output)

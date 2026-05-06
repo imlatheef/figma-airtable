@@ -95,6 +95,13 @@ class TemplateOutput(BaseModel):
     variant_field: str = ""
     variants: dict[str, TemplateVariant] = {}
 
+    # Auto-variant: if this Airtable field has content (e.g. a second speaker
+    # photo), switch to the named variant automatically.
+    # e.g. auto_variant_on_field: "Pic speaker 2"
+    #      auto_variant_name: "two_speakers"
+    auto_variant_on_field: str = ""
+    auto_variant_name:     str = "two_speakers"
+
     # Optional field mapping overrides (merged over parent mappings)
     field_mapping_overrides:       dict[str, str] = {}
     image_field_mapping_overrides: dict[str, str] = {}
@@ -124,6 +131,35 @@ class TemplateOutput(BaseModel):
                 "[%s › %s] Variant '%s' not found — using default frame. Available: %s",
                 template_name, self.name, field_value, list(self.variants.keys()),
             )
+        return TemplateVariant(
+            figma_file_key=self.figma_file_key,
+            figma_frame_node_id=self.figma_frame_node_id,
+            figma_export_scale=self.figma_export_scale,
+        )
+
+    def resolve_auto_variant(self, fields: dict, template_name: str) -> TemplateVariant:
+        """
+        Check if auto_variant_on_field has content in the record.
+        If yes and the named variant exists, use it. Otherwise use the default frame.
+        This runs before variant_field resolution so it takes priority.
+        """
+        if self.auto_variant_on_field and self.variants:
+            field_val = fields.get(self.auto_variant_on_field)
+            has_content = bool(field_val and (
+                (isinstance(field_val, list) and len(field_val) > 0) or
+                (isinstance(field_val, str) and field_val.strip())
+            ))
+            if has_content and self.auto_variant_name in self.variants:
+                log.info(
+                    "[%s › %s] Field '%s' has content — using auto variant '%s'",
+                    template_name, self.name, self.auto_variant_on_field, self.auto_variant_name,
+                )
+                return self.variants[self.auto_variant_name]
+            elif has_content:
+                log.warning(
+                    "[%s › %s] Field '%s' has content but variant '%s' not found — using default",
+                    template_name, self.name, self.auto_variant_on_field, self.auto_variant_name,
+                )
         return TemplateVariant(
             figma_file_key=self.figma_file_key,
             figma_frame_node_id=self.figma_frame_node_id,
