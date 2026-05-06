@@ -52,7 +52,7 @@ templates:
     # Shared mappings — layer names must exist in ALL output frames
     field_mappings:
       "Talk Title":     "Title"
-      "Name (from Speakers)":    "Speaker name"
+      "Speaker 1":    "Speaker name"
       "Tagline (from Speakers)": "Job"
 
     image_field_mappings:
@@ -68,8 +68,8 @@ templates:
         auto_variant_on_field: "Pic speaker 2"
         auto_variant_name:     "two_speakers"
         field_mapping_overrides:
-          "Name (from Speakers 2)": "Speaker name 2"
-          "Tagline (from Speakers 2)": "Job 2"
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
         image_field_mapping_overrides:
           "Pic speaker 2": "Photo2"
         variants:
