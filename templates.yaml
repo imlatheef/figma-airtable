@@ -77,6 +77,42 @@ templates:
             figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
             figma_frame_node_id: "41-602"
 
+      - name: "Workshop Open Graph"
+        selection_value:       "Workshop-opengraph"
+        attachment_field:      "Session Open Graph"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "71-2699"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "71-2792"
+
+      - name: "Background"
+        selection_value:       "Background"
+        attachment_field:      "Background"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "35-37"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "41-453"
+
       - name: "LinkedIn Social"
         selection_value:     "LI-social"
         attachment_field:    "LI-Social"
