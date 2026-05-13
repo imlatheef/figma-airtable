@@ -97,7 +97,7 @@ templates:
 
       - name: "Workshop Socials"
         selection_value:       "Workshop-social"
-        attachment_field:      "Session social-share"
+        attachment_field:      "Session social"
         figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
         figma_frame_node_id:   "5-501"
         figma_export_scale:    2.0
