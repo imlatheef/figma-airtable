@@ -54,6 +54,7 @@ templates:
       "Talk Title":     "Title"
       "Speaker 1":    "Speaker name"
       "Tagline (from Speakers)": "Job"
+      "Date" : "Date"
 
     image_field_mappings:
        "Pic speaker 1": "Photo1"
