@@ -146,6 +146,102 @@ templates:
         figma_frame_node_id: "3:8"                # ← replace with your frame node ID
         figma_export_scale:  2.0
 
+
+  - name: "PlatformCon Speakers"
+
+    airtable_base_id:       "appWCcWlFJyl24qil"
+    airtable_table_name:    "Speakers"
+    erase_placeholders:     false   # text layers in Figma set to 0% opacity
+
+    # Single-select trigger — fires when field equals trigger_value.
+    # Use airtable_trigger_value for single-select fields (like a status column).
+    # Leave airtable_trigger_value blank to use a checkbox field instead.
+    airtable_trigger_field:       "Design status"
+    airtable_trigger_pending_value: "Pending"
+    airtable_trigger_working_value: "Working"
+    airtable_trigger_value:       "Push to design"
+    airtable_trigger_reset_value: "Ready for publication"   # set after generation
+
+    # Airtable multi-select field that controls which outputs to run.
+    # Values must match the selection_value of each output exactly.
+    selection_field: "Generate"
+
+    remove_background: true
+
+    # Font map — Figma font family name → file in the fonts/ directory.
+    # To find the exact name: in Figma, click a text layer → inspect the font
+    # name shown in the right panel (e.g. "Space Grotesk Bold").
+    # Drop the TTF/OTF file into the fonts/ folder and reference it here.
+    font_map:
+      "Space Grotesk Bold":    "SpaceGrotesk-Bold.ttf"
+      "Space Grotesk":         "SpaceGrotesk-Regular.ttf"
+      "Space Grotesk Medium":  "SpaceGrotesk-Medium.ttf"
+
+    # Shared mappings — layer names must exist in ALL output frames
+    field_mappings:
+      "Talk Title":     "Title"
+      "Speaker 1":    "Speaker name"
+      "Tagline (from Speakers)": "Job"
+      "Date" : "Date"
+
+    image_field_mappings:
+       "Pic speaker 1": "Photo1"
+
+    outputs:
+      - name: "Virtual"
+        selection_value:       "Virtual"
+        attachment_field:      "Social-image"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "109-1316"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "41-602"
+
+      - name: "London"
+        selection_value:       "London"
+        attachment_field:      "Social-image"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "109-1419"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "71-2792"
+
+      - name: "NYC"
+        selection_value:       "NYC"
+        attachment_field:      "Social-image"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "109-1495"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "71-2792"
+
   - name: "Webinars"
 
     airtable_base_id:       "appU6vYAsEYaZ7hNL"
