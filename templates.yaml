@@ -180,8 +180,8 @@ templates:
     # Shared mappings — layer names must exist in ALL output frames
     field_mappings:
       "Talk Title":     "Title"
-      "Speaker 1":    "Speaker name"
-      "Tagline (from Speakers)": "Job"
+      "Name":    "Speaker name"
+      "Tagline": "Job"
       "Date" : "Date"
 
     image_field_mappings:
