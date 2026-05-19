@@ -185,7 +185,7 @@ templates:
       "Date" : "Date"
 
     image_field_mappings:
-       "Pic speaker 1": "Photo1"
+       "Profile Picture": "Photo1"
 
     outputs:
       - name: "Virtual"
