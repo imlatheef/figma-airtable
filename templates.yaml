@@ -114,6 +114,42 @@ templates:
             figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
             figma_frame_node_id: "86-3400"
 
+      - name: "Roundtables Socials"
+        selection_value:       "Roundtable-social"
+        attachment_field:      "Session social"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "128-765"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "129-870"
+
+      - name: "Talks Socials"
+        selection_value:       "Talks-social"
+        attachment_field:      "Session social"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "129-970"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "129-1058"
+
       - name: "Background"
         selection_value:       "Background"
         attachment_field:      "Background"
