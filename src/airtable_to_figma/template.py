@@ -102,6 +102,13 @@ class TemplateOutput(BaseModel):
     auto_variant_on_field: str = ""
     auto_variant_name:     str = "two_speakers"
 
+    # Boolean-variant: if this Airtable checkbox/boolean field is truthy,
+    # switch to the named variant. Checked before auto_variant_on_field.
+    # e.g. boolean_variant_field: "Is Sponsored"
+    #      boolean_variant_name: "sponsored"
+    boolean_variant_field: str = ""
+    boolean_variant_name:  str = "sponsored"
+
     # Optional field mapping overrides (merged over parent mappings)
     field_mapping_overrides:       dict[str, str] = {}
     image_field_mapping_overrides: dict[str, str] = {}
@@ -120,6 +127,55 @@ class TemplateOutput(BaseModel):
         if not 0.5 <= v <= 4.0:
             raise ValueError("figma_export_scale must be between 0.5 and 4.0")
         return v
+
+    def resolve_boolean_variant(self, fields: dict, template_name: str) -> TemplateVariant | None:
+        """
+        Check if boolean_variant_field is truthy in the record.
+        If auto_variant_on_field also has content, tries the combined variant
+        name first (e.g. "sponsored_two_speakers") before falling back to the
+        boolean-only variant (e.g. "sponsored").
+        Returns None when the field is not checked or no variant can be resolved.
+        """
+        if not self.boolean_variant_field or not self.variants:
+            return None
+        field_val = fields.get(self.boolean_variant_field)
+        if not bool(field_val):
+            return None
+
+        # Check for combined variant when auto_variant_on_field is also active
+        if self.auto_variant_on_field:
+            auto_val = fields.get(self.auto_variant_on_field)
+            has_auto = bool(auto_val and (
+                (isinstance(auto_val, list) and len(auto_val) > 0) or
+                (isinstance(auto_val, str) and auto_val.strip())
+            ))
+            if has_auto:
+                combined = f"{self.boolean_variant_name}_{self.auto_variant_name}"
+                if combined in self.variants:
+                    log.info(
+                        "[%s › %s] '%s' checked + '%s' has content — using combined variant '%s'",
+                        template_name, self.name, self.boolean_variant_field,
+                        self.auto_variant_on_field, combined,
+                    )
+                    return self.variants[combined]
+                log.warning(
+                    "[%s › %s] Combined variant '%s' not found — falling back to '%s'",
+                    template_name, self.name, combined, self.boolean_variant_name,
+                )
+
+        # Boolean field checked, no combined variant needed (or not found)
+        if self.boolean_variant_name in self.variants:
+            log.info(
+                "[%s › %s] Field '%s' is checked — using boolean variant '%s'",
+                template_name, self.name, self.boolean_variant_field, self.boolean_variant_name,
+            )
+            return self.variants[self.boolean_variant_name]
+        log.warning(
+            "[%s › %s] Field '%s' is checked but variant '%s' not found — using default. Available: %s",
+            template_name, self.name, self.boolean_variant_field, self.boolean_variant_name,
+            list(self.variants.keys()),
+        )
+        return None
 
     def resolve_variant(self, field_value: str, template_name: str) -> TemplateVariant:
         """Return the TemplateVariant to use, falling back to the output's default frame."""

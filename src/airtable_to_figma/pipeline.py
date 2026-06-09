@@ -99,8 +99,11 @@ def _process_output(
     label = f"{template.name} › {output.name}"
 
     # ── Resolve variant ───────────────────────────────────────────────────────
-    # Auto-variant takes priority: check if a presence-based field triggers it
-    if output.auto_variant_on_field:
+    # Priority: boolean_variant_field → auto_variant_on_field → variant_field → default
+    boolean_variant = output.resolve_boolean_variant(fields, template.name)
+    if boolean_variant is not None:
+        variant = boolean_variant
+    elif output.auto_variant_on_field:
         variant = output.resolve_auto_variant(fields, template.name)
     else:
         variant_value = ""
