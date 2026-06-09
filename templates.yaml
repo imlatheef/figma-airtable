@@ -180,6 +180,8 @@ templates:
         figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
         figma_frame_node_id:   "35-37"
         figma_export_scale:    2.0
+        boolean_variant_field: "Is Sponsored"
+        boolean_variant_name:  "sponsored"
         auto_variant_on_field: "Pic speaker 2"
         auto_variant_name:     "two_speakers"
         field_mapping_overrides:
@@ -188,6 +190,12 @@ templates:
         image_field_mapping_overrides:
           "Pic speaker 2": "Photo2"
         variants:
+          sponsored:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "147-1104"
+          sponsored_two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "149-1202"
           two_speakers:
             figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
             figma_frame_node_id: "41-453"
