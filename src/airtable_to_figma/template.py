@@ -109,6 +109,15 @@ class TemplateOutput(BaseModel):
     boolean_variant_field: str = ""
     boolean_variant_name:  str = "sponsored"
 
+    # Field-value variant: maps an Airtable field value to a base variant name
+    # via field_variant_map, then combines with auto_variant_name when
+    # auto_variant_on_field also has content.
+    # e.g. field_variant_field: "Location type"
+    #      field_variant_map: { "LiveDay LDN": "liveday_ldn", "LiveDay NYC": "liveday_nyc" }
+    # Variant keys: "liveday_ldn", "liveday_ldn_two_speakers", etc.
+    field_variant_field: str = ""
+    field_variant_map:   dict[str, str] = {}
+
     # Optional field mapping overrides (merged over parent mappings)
     field_mapping_overrides:       dict[str, str] = {}
     image_field_mapping_overrides: dict[str, str] = {}
@@ -174,6 +183,61 @@ class TemplateOutput(BaseModel):
             "[%s › %s] Field '%s' is checked but variant '%s' not found — using default. Available: %s",
             template_name, self.name, self.boolean_variant_field, self.boolean_variant_name,
             list(self.variants.keys()),
+        )
+        return None
+
+    def resolve_field_variant(self, fields: dict, template_name: str) -> TemplateVariant | None:
+        """
+        Read field_variant_field, map its value to a base variant name via
+        field_variant_map, then try the combined name with auto_variant_name if
+        auto_variant_on_field has content.  Returns None when the field is
+        missing or unmapped.
+        """
+        if not self.field_variant_field or not self.field_variant_map or not self.variants:
+            return None
+        raw = fields.get(self.field_variant_field, "")
+        if isinstance(raw, list):
+            raw = raw[0] if raw else ""
+        value = str(raw).strip()
+        base_name = self.field_variant_map.get(value)
+        if not base_name:
+            if value:
+                log.warning(
+                    "[%s › %s] field_variant_field '%s' = '%s' not in field_variant_map %s — using default",
+                    template_name, self.name, self.field_variant_field, value,
+                    list(self.field_variant_map.keys()),
+                )
+            return None
+
+        if self.auto_variant_on_field:
+            auto_val = fields.get(self.auto_variant_on_field)
+            has_auto = bool(auto_val and (
+                (isinstance(auto_val, list) and len(auto_val) > 0) or
+                (isinstance(auto_val, str) and auto_val.strip())
+            ))
+            if has_auto:
+                combined = f"{base_name}_{self.auto_variant_name}"
+                if combined in self.variants:
+                    log.info(
+                        "[%s › %s] '%s' = '%s' + '%s' has content — using combined variant '%s'",
+                        template_name, self.name, self.field_variant_field, value,
+                        self.auto_variant_on_field, combined,
+                    )
+                    return self.variants[combined]
+                log.warning(
+                    "[%s › %s] Combined variant '%s' not found — falling back to '%s'",
+                    template_name, self.name, combined, base_name,
+                )
+
+        if base_name in self.variants:
+            log.info(
+                "[%s › %s] Field '%s' = '%s' — using variant '%s'",
+                template_name, self.name, self.field_variant_field, value, base_name,
+            )
+            return self.variants[base_name]
+        log.warning(
+            "[%s › %s] Variant '%s' not found — using default. Available: %s",
+            template_name, self.name, base_name, list(self.variants.keys()),
         )
         return None
 

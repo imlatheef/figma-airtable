@@ -99,10 +99,13 @@ def _process_output(
     label = f"{template.name} › {output.name}"
 
     # ── Resolve variant ───────────────────────────────────────────────────────
-    # Priority: boolean_variant_field → auto_variant_on_field → variant_field → default
+    # Priority: boolean_variant_field → field_variant_field → auto_variant_on_field → variant_field → default
     boolean_variant = output.resolve_boolean_variant(fields, template.name)
     if boolean_variant is not None:
         variant = boolean_variant
+    elif output.field_variant_field:
+        field_variant = output.resolve_field_variant(fields, template.name)
+        variant = field_variant if field_variant is not None else output.resolve_variant("", template.name)
     elif output.auto_variant_on_field:
         variant = output.resolve_auto_variant(fields, template.name)
     else:
