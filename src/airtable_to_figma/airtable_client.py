@@ -82,9 +82,10 @@ class AirtableClient:
         Upload image_bytes as an attachment.
 
         Strategy (tries in order):
-          1. Airtable Content API  (direct multipart upload)
-          2. file.io               (free temp host → give Airtable the URL)
-          3. 0x0.st                (backup temp host)
+          1. Airtable Content API  (JSON body, base64-encoded file — per Airtable's
+             documented uploadAttachment spec; NOT multipart/form-data)
+          2. imgbb                 (free image host → give Airtable the URL)
+          3. transfer.sh           (backup temp host)
         """
         content_type = mimetypes.guess_type(filename)[0] or "image/jpeg"
 
@@ -92,42 +93,39 @@ class AirtableClient:
             f"{AIRTABLE_CONTENT_API}/{self.base_id}/{record_id}"
             f"/{requests.utils.quote(attachment_field)}/uploadAttachment"
         )
-        upload_headers = {"Authorization": self._session.headers["Authorization"]}
+        upload_headers = {
+            "Authorization": self._session.headers["Authorization"],
+            "Content-Type": "application/json",
+        }
 
-        # ── 1. Airtable Content API with field name "file" ─────────────────────
+        # ── 1. Airtable Content API (JSON + base64) ─────────────────────────────
         try:
+            import base64
+
+            payload = {
+                "contentType": content_type,
+                "file": base64.b64encode(image_bytes).decode(),
+                "filename": filename,
+            }
             resp = requests.post(
                 upload_url, headers=upload_headers,
-                files={"file": (filename, image_bytes, content_type)},
+                json=payload,
                 timeout=120,
             )
-            log.info("Content API (file) → %s: %s", resp.status_code, resp.text[:200])
+            log.info("Content API → %s: %s", resp.status_code, resp.text[:200])
             if resp.status_code == 200:
                 return self.get_record(record_id)
         except Exception as e:
-            log.warning("Content API (file) error: %s", e)
+            log.warning("Content API error: %s", e)
 
-        # ── 2. Airtable Content API with field name "attachment" ───────────────
-        try:
-            resp = requests.post(
-                upload_url, headers=upload_headers,
-                files={"attachment": (filename, image_bytes, content_type)},
-                timeout=120,
-            )
-            log.info("Content API (attachment) → %s: %s", resp.status_code, resp.text[:200])
-            if resp.status_code == 200:
-                return self.get_record(record_id)
-        except Exception as e:
-            log.warning("Content API (attachment) error: %s", e)
-
-        # ── 3. imgbb (free image host, needs API key in config) ────────────────
+        # ── 2. imgbb (free image host, needs API key in config) ────────────────
         imgbb_key = self._imgbb_key
         if imgbb_key:
             public_url = self._upload_to_imgbb(image_bytes, imgbb_key)
             if public_url:
                 return self._patch_with_url(record_id, attachment_field, public_url, filename)
 
-        # ── 4. transfer.sh ─────────────────────────────────────────────────────
+        # ── 3. transfer.sh ─────────────────────────────────────────────────────
         public_url = self._upload_to_transfer_sh(image_bytes, filename)
         if public_url:
             return self._patch_with_url(record_id, attachment_field, public_url, filename)
