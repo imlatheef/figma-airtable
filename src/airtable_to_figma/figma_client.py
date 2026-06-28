@@ -186,31 +186,30 @@ class FigmaClient:
         for child in node.get("children", []):
             self._walk(child, result, frame_x, frame_y)
 
-    def export_frame_pdf(self, frame_node_id: str) -> bytes:
-        """Export a single Figma frame as raw PDF bytes."""
-        data = self._get(
-            f"/images/{self.file_key}",
-            ids=frame_node_id,
-            format="pdf",
-        )
-        images: dict = data.get("images", {})
-        url: str | None = None
-        for key in (frame_node_id, frame_node_id.replace(":", "-"), frame_node_id.replace("-", ":")):
-            url = images.get(key)
-            if url:
-                break
-        if not url and images:
-            url = next(iter(images.values()))
-        if not url:
-            raise RuntimeError(
-                f"Figma returned no PDF URL for node {frame_node_id}. "
-                "Check that the node-id is correct and the frame is visible."
-            )
-        log.debug("Downloading Figma PDF export from %s", url[:60])
-        resp = requests.get(url, timeout=120)
-        resp.raise_for_status()
-        log.info("Exported PDF frame %s  size=%d bytes", frame_node_id, len(resp.content))
-        return resp.content
+    def export_frame_pdf(self, frame_node_id: str, scale: float = 2.0) -> bytes:
+        """
+        Export a Figma frame as a single-page PDF.
+
+        Uses the PNG export path (already reliable) and embeds the image into a
+        PDF page sized to the frame's Figma-unit dimensions, so text overlay
+        coordinates map 1:1 with no scaling.
+        """
+        from reportlab.lib.utils import ImageReader
+        from reportlab.pdfgen import canvas as rl_canvas
+
+        img = self.export_frame_image(frame_node_id, scale=scale, fmt="png")
+        frame_w = img.width / scale
+        frame_h = img.height / scale
+
+        buf = io.BytesIO()
+        c = rl_canvas.Canvas(buf, pagesize=(frame_w, frame_h))
+        img_buf = io.BytesIO()
+        img.convert("RGB").save(img_buf, format="PNG")
+        img_buf.seek(0)
+        c.drawImage(ImageReader(img_buf), 0, 0, frame_w, frame_h)
+        c.save()
+        log.info("Converted frame %s to PDF  size=(%.0f, %.0f)pt", frame_node_id, frame_w, frame_h)
+        return buf.getvalue()
 
     def export_frame_image(
         self,
