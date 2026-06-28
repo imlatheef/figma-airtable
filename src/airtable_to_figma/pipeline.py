@@ -36,6 +36,9 @@ log = logging.getLogger(__name__)
 # ── Per-variant Figma cache keyed by (file_key, frame_node_id) ──────────────
 _figma_cache: dict[tuple[str, str], tuple[Image.Image, list[dict], list[dict]]] = {}
 
+# ── Static PDF page cache keyed by (file_key, frame_node_id) ─────────────────
+_static_pdf_cache: dict[tuple[str, str], bytes] = {}
+
 
 def _get_figma_assets(
     figma: FigmaClient,
@@ -468,10 +471,17 @@ def run_pdf_report_pipeline(
     figma = FigmaClient(api_key=settings.figma_api_key, file_key=report.figma_file_key)
     pdf_pages: list[bytes] = []
 
-    # Static pages — export as PDF, no overlay
+    # Static pages — export once and cache for the lifetime of the process
     for frame_id in report.static_page_ids:
-        log.info("[%s] Static page %s", report.name, frame_id)
-        pdf_pages.append(figma.export_frame_pdf(frame_id))
+        cache_key = (report.figma_file_key, frame_id)
+        if cache_key in _static_pdf_cache:
+            log.info("[%s] Static page %s (cached)", report.name, frame_id)
+            pdf_pages.append(_static_pdf_cache[cache_key])
+        else:
+            log.info("[%s] Static page %s", report.name, frame_id)
+            page_bytes = figma.export_frame_pdf(frame_id)
+            _static_pdf_cache[cache_key] = page_bytes
+            pdf_pages.append(page_bytes)
 
     # Resolve location combo
     raw_loc = fields.get(report.location_field, [])

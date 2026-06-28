@@ -187,7 +187,7 @@ class FigmaClient:
         for child in node.get("children", []):
             self._walk(child, result, frame_x, frame_y)
 
-    def export_frame_pdf(self, frame_node_id: str, scale: float = 2.0) -> bytes:
+    def export_frame_pdf(self, frame_node_id: str, scale: float = 1.0) -> bytes:
         """
         Export a Figma frame as a single-page PDF.
 
