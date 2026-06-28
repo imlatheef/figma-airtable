@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 import logging
+import time
 from typing import Any
 
 import requests
@@ -216,39 +217,61 @@ class FigmaClient:
         frame_node_id: str,
         scale: float = 2.0,
         fmt: str = "jpg",
+        max_retries: int = 4,
     ) -> Image.Image:
         """
         Export the Figma template frame as a PIL Image.
 
         scale=2 → double resolution (good for retina/print).
+        Retries up to max_retries times with exponential backoff — Figma's render
+        queue can return 400 when busy with concurrent large-frame exports.
         """
-        data = self._get(
-            f"/images/{self.file_key}",
-            ids=frame_node_id,
-            format=fmt,
-            scale=scale,
-        )
-        images: dict = data.get("images", {})
+        delays = [10, 20, 40, 60]
+        last_exc: Exception | None = None
 
-        # Figma returns URLs keyed by node-id (may use ':' or '-')
-        url: str | None = None
-        for key in (frame_node_id, frame_node_id.replace(":", "-"), frame_node_id.replace("-", ":")):
-            url = images.get(key)
-            if url:
-                break
-        if not url and images:
-            url = next(iter(images.values()))
+        for attempt in range(max_retries):
+            try:
+                data = self._get(
+                    f"/images/{self.file_key}",
+                    ids=frame_node_id,
+                    format=fmt,
+                    scale=scale,
+                )
+                images: dict = data.get("images", {})
 
-        if not url:
-            raise RuntimeError(
-                f"Figma returned no image URL for node {frame_node_id}. "
-                "Check that the node-id is correct and the frame is visible."
-            )
+                # Figma returns URLs keyed by node-id (may use ':' or '-')
+                url: str | None = None
+                for key in (frame_node_id, frame_node_id.replace(":", "-"), frame_node_id.replace("-", ":")):
+                    url = images.get(key)
+                    if url:
+                        break
+                if not url and images:
+                    url = next(iter(images.values()))
 
-        log.debug("Downloading Figma export from %s", url[:60])
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
+                if not url:
+                    raise RuntimeError(
+                        f"Figma returned no image URL for node {frame_node_id}. "
+                        "Check that the node-id is correct and the frame is visible."
+                    )
 
-        img = Image.open(io.BytesIO(resp.content)).convert("RGBA")
-        log.info("Exported frame %s  size=%s", frame_node_id, img.size)
-        return img
+                log.debug("Downloading Figma export from %s", url[:60])
+                resp = requests.get(url, timeout=120)
+                resp.raise_for_status()
+
+                img = Image.open(io.BytesIO(resp.content)).convert("RGBA")
+                log.info("Exported frame %s  size=%s", frame_node_id, img.size)
+                return img
+
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_retries - 1:
+                    wait = delays[attempt]
+                    log.warning(
+                        "Figma export failed for %s (attempt %d/%d): %s — retrying in %ds",
+                        frame_node_id, attempt + 1, max_retries, exc, wait,
+                    )
+                    time.sleep(wait)
+
+        raise RuntimeError(
+            f"Figma export failed for {frame_node_id} after {max_retries} attempts"
+        ) from last_exc
