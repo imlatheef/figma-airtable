@@ -1,3 +1,115 @@
+pdf_reports:
+
+  - name: "Sponsor Report"
+
+    airtable_base_id:    "appWCcWlFJyl24qil"
+    airtable_table_name: "Sponsor Recap - PlatformCon 2026"
+
+    # Single-select trigger — set this field to "Generate" to kick off a report.
+    airtable_trigger_field:       "Generate Report"
+    airtable_trigger_value:       "Generate"
+    airtable_trigger_reset_value: "Done"
+
+    # Airtable attachment field where the final PDF is uploaded.
+    attachment_field: "Sponsor Report PDF"
+
+    # Figma file containing all 10 report frames.
+    figma_file_key: "2l8icaQqVfYBuSIjWYZ98s"
+
+    # Multi-select field in Airtable with options: London, NYC, Virtual.
+    location_field: "Location"
+
+    font_map:
+      "Space Grotesk Bold":   "SpaceGrotesk-Bold.ttf"
+      "Space Grotesk":        "SpaceGrotesk-Regular.ttf"
+      "Space Grotesk Medium": "SpaceGrotesk-Medium.ttf"
+
+    # Pages 1–4 are always included, exported as-is (no data overlay).
+    static_page_ids:
+      - "6:695"   # page 1 — overall overview
+      - "6:844"   # page 2 — audience demographics
+      - "6:3936"  # page 3 — Live Day LDN summary
+      - "6:1229"  # page 4 — Live Day NYC summary
+
+    # One entry per sponsorship combination.
+    # The pipeline matches the record's Location values (as a set) to the right combo.
+    combos:
+
+      - locations: ["Virtual"]
+        pages:
+          - figma_frame_node_id: "7:11088"
+            field_mappings:
+              "@":                         "Sponsor label"
+              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
+              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
+              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+
+      - locations: ["London"]
+        pages:
+          - figma_frame_node_id: "7:9671"
+            field_mappings:
+              "@":                        "Sponsor label"
+              "#Liveday-wr registrants":  "LDN In-person workshop registrations"
+              "#Live day workshop attendees": "LDN In-person workshop attendees"
+              "#Leads scanned at booth":  "LDN Booth leads scanned"
+
+      - locations: ["NYC"]
+        pages:
+          - figma_frame_node_id: "7:8417"
+            field_mappings:
+              "@":                        "Sponsor label"
+              "#Liveday-wr registrants":  "NYC In-person workshop registrations"
+              "#Live day workshop attendees": "NYC In-person workshop attendees"
+              "#Leads scanned at booth":  "NYC Booth leads scanned"
+
+      - locations: ["Virtual", "London"]
+        pages:
+          - figma_frame_node_id: "6:6635"
+            field_mappings:
+              "@":                         "Sponsor label"
+              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
+              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
+              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+              "#Leads scanned at booth":   "LDN Booth leads scanned"
+
+      - locations: ["Virtual", "NYC"]
+        pages:
+          - figma_frame_node_id: "7:12294"
+            field_mappings:
+              "@":                         "Sponsor label"
+              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
+              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
+              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+              "#Leads scanned at booth":   "NYC Booth leads scanned"
+
+      - locations: ["London", "NYC"]
+        pages:
+          - figma_frame_node_id: "7:13534"
+            field_mappings:
+              "@":                            "Sponsor label"
+              "#Liveday-wr registrants":      "LDN In-person workshop registrations"
+              "#Live day workshop attendees[0]": "LDN In-person workshop attendees"
+              "#Leads scanned at booth[0]":   "LDN Booth leads scanned"
+              # Second occurrence of #Live day workshop attendees is the NYC "Leads scanned" slot
+              "#Live day workshop attendees[1]": "NYC Booth leads scanned"
+
+      - locations: ["Virtual", "London", "NYC"]
+        pages:
+          - figma_frame_node_id: "7:13534"   # LDN + NYC combined page
+            field_mappings:
+              "@":                            "Sponsor label"
+              "#Liveday-wr registrants":      "LDN In-person workshop registrations"
+              "#Live day workshop attendees[0]": "LDN In-person workshop attendees"
+              "#Leads scanned at booth[0]":   "LDN Booth leads scanned"
+              "#Live day workshop attendees[1]": "NYC Booth leads scanned"
+          - figma_frame_node_id: "7:11088"   # Virtual stats page
+            field_mappings:
+              "@":                         "Sponsor label"
+              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
+              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
+              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+
+
 # templates.yaml
 # ──────────────
 # Define one entry per design workflow.

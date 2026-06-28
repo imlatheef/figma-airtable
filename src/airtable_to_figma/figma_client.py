@@ -186,6 +186,32 @@ class FigmaClient:
         for child in node.get("children", []):
             self._walk(child, result, frame_x, frame_y)
 
+    def export_frame_pdf(self, frame_node_id: str) -> bytes:
+        """Export a single Figma frame as raw PDF bytes."""
+        data = self._get(
+            f"/images/{self.file_key}",
+            ids=frame_node_id,
+            format="pdf",
+        )
+        images: dict = data.get("images", {})
+        url: str | None = None
+        for key in (frame_node_id, frame_node_id.replace(":", "-"), frame_node_id.replace("-", ":")):
+            url = images.get(key)
+            if url:
+                break
+        if not url and images:
+            url = next(iter(images.values()))
+        if not url:
+            raise RuntimeError(
+                f"Figma returned no PDF URL for node {frame_node_id}. "
+                "Check that the node-id is correct and the frame is visible."
+            )
+        log.debug("Downloading Figma PDF export from %s", url[:60])
+        resp = requests.get(url, timeout=120)
+        resp.raise_for_status()
+        log.info("Exported PDF frame %s  size=%d bytes", frame_node_id, len(resp.content))
+        return resp.content
+
     def export_frame_image(
         self,
         frame_node_id: str,

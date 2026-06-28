@@ -19,9 +19,9 @@ import time
 import colorlog
 import requests
 
-from airtable_to_figma.pipeline import run_pipeline
+from airtable_to_figma.pipeline import run_pdf_report_pipeline, run_pipeline
 from airtable_to_figma.settings import Settings, get_settings
-from airtable_to_figma.template import TemplateConfig, load_templates
+from airtable_to_figma.template import PdfReportConfig, TemplateConfig, load_pdf_reports, load_templates
 
 log = logging.getLogger(__name__)
 
@@ -64,8 +64,31 @@ def get_pending_records(
     return resp.json().get("records", [])
 
 
-def _poll_once(settings: Settings, templates: list[TemplateConfig]) -> None:
-    """Check all templates once and process any pending records."""
+def get_pending_pdf_records(settings: Settings, report: PdfReportConfig) -> list[dict]:
+    """Return records where the trigger field is set for a PDF report."""
+    if report.airtable_trigger_value:
+        formula = f'{{{report.airtable_trigger_field}}}="{report.airtable_trigger_value}"'
+    else:
+        formula = f"{{{report.airtable_trigger_field}}}=1"
+    base_url = (
+        f"https://api.airtable.com/v0/{report.airtable_base_id}"
+        f"/{requests.utils.quote(report.airtable_table_name)}"
+    )
+    resp = requests.get(
+        base_url,
+        headers={"Authorization": f"Bearer {settings.airtable_api_key}"},
+        params={"filterByFormula": formula, "maxRecords": 50},
+    )
+    resp.raise_for_status()
+    return resp.json().get("records", [])
+
+
+def _poll_once(
+    settings: Settings,
+    templates: list[TemplateConfig],
+    pdf_reports: list[PdfReportConfig],
+) -> None:
+    """Check all templates and PDF reports once and process any pending records."""
     for template in templates:
         try:
             records = get_pending_records(settings, template)
@@ -82,6 +105,23 @@ def _poll_once(settings: Settings, templates: list[TemplateConfig]) -> None:
                 log.info("[%s] No pending records.", template.name)
         except Exception as exc:
             log.error("[%s] Poll error: %s", template.name, exc)
+
+    for report in pdf_reports:
+        try:
+            records = get_pending_pdf_records(settings, report)
+            if records:
+                log.info("[%s] Found %d PDF report record(s) to process", report.name, len(records))
+                for record in records:
+                    rid = record.get("id")
+                    if rid:
+                        try:
+                            run_pdf_report_pipeline(settings, report, rid)
+                        except Exception as exc:
+                            log.error("[%s] Failed to process %s: %s", report.name, rid, exc)
+            else:
+                log.info("[%s] No pending records.", report.name)
+        except Exception as exc:
+            log.error("[%s] PDF report poll error: %s", report.name, exc)
 
 
 def run_poller() -> None:
@@ -109,16 +149,22 @@ def run_poller() -> None:
         log.error("Copy templates.yaml.example to templates.yaml and fill in your templates.")
         raise SystemExit(1)
 
+    pdf_reports = load_pdf_reports()
+
     log.info("=" * 60)
     log.info("  Airtable → Figma Poller")
     log.info("=" * 60)
     log.info("Loaded %d template(s):", len(templates))
     for t in templates:
         log.info("  • %s", t)
+    if pdf_reports:
+        log.info("Loaded %d PDF report(s):", len(pdf_reports))
+        for r in pdf_reports:
+            log.info("  • %s", r.name)
 
     if args.run_once:
         log.info("Running once then exiting (--run-once mode).\n")
-        _poll_once(settings, templates)
+        _poll_once(settings, templates, pdf_reports)
         return
 
     interval = settings.poll_interval
@@ -133,7 +179,7 @@ def run_poller() -> None:
 
     while True:
         try:
-            _poll_once(settings, templates)
+            _poll_once(settings, templates, pdf_reports)
         except Exception as exc:
             # Never let an unhandled exception kill the process —
             # log it and keep going.

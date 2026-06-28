@@ -12,6 +12,8 @@ dependencies = [
     "colorlog>=6.8.2",
     "rembg>=2.0.0",
     "onnxruntime>=1.16.0",
+    "pypdf>=4.0.0",
+    "reportlab>=4.0.0",
 ]
 
 [project.scripts]

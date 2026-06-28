@@ -477,6 +477,60 @@ class TemplateConfig(BaseModel):
         )
 
 
+# ── PDF Report ─────────────────────────────────────────────────────────────────
+
+class PdfPage(BaseModel):
+    """One page in a PDF report — a Figma frame with an optional data overlay."""
+    figma_frame_node_id: str
+    field_mappings: dict[str, str] = {}
+
+    @field_validator("figma_frame_node_id")
+    @classmethod
+    def normalise_node_id(cls, v: str) -> str:
+        if not v:
+            return v
+        v = v.split("&")[0].strip()
+        return v.replace("-", ":") if ":" not in v else v
+
+
+class LocationCombo(BaseModel):
+    """Maps a set of Location multi-select values to one or more PDF pages."""
+    locations: list[str]
+    pages: list[PdfPage]
+
+
+class PdfReportConfig(BaseModel):
+    name: str
+    airtable_base_id: str
+    airtable_table_name: str
+    airtable_trigger_field: str
+    airtable_trigger_value: str = ""
+    airtable_trigger_reset_value: str = ""
+    airtable_trigger_pending_value: str = ""
+    airtable_trigger_working_value: str = ""
+    attachment_field: str
+    figma_file_key: str
+    location_field: str
+    static_page_ids: list[str]
+    combos: list[LocationCombo]
+    font_map: dict[str, str] = {}
+
+
+def load_pdf_reports(path: Path | str | None = None) -> list[PdfReportConfig]:
+    """Load PDF report configs from the pdf_reports section of templates.yaml."""
+    resolved = Path(path) if path else TEMPLATES_FILE
+    if not resolved.exists():
+        return []
+    with open(resolved) as f:
+        data = yaml.safe_load(f)
+    raw = data.get("pdf_reports", [])
+    if not raw:
+        return []
+    reports = [PdfReportConfig(**r) for r in raw]
+    log.info("Loaded %d PDF report(s): %s", len(reports), [r.name for r in reports])
+    return reports
+
+
 def load_templates(path: Path | str | None = None) -> list[TemplateConfig]:
     """
     Load all templates from templates.yaml.
