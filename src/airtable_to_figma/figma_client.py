@@ -205,7 +205,7 @@ class FigmaClient:
         buf = io.BytesIO()
         c = rl_canvas.Canvas(buf, pagesize=(frame_w, frame_h))
         img_buf = io.BytesIO()
-        img.convert("RGB").save(img_buf, format="PNG")
+        img.convert("RGB").save(img_buf, format="JPEG", quality=95)
         img_buf.seek(0)
         c.drawImage(ImageReader(img_buf), 0, 0, frame_w, frame_h)
         c.save()
