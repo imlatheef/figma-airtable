@@ -354,7 +354,6 @@ def _overlay_text_on_pdf(
     PDF page dimensions (handles Figma's variable PDF export DPI).
     """
     from pypdf import PdfReader, PdfWriter
-    from reportlab.lib.units import pt
     from reportlab.pdfgen import canvas as rl_canvas
 
     # Read actual PDF page size (Figma may export at a different scale than frame units)
