@@ -538,12 +538,17 @@ def run_pdf_report_pipeline(
     )
     log.info("[%s] ✓ Uploaded  record=%s", report.name, record_id)
 
-    if report.airtable_trigger_reset_value:
+    # Reset trigger — try the configured value first, fall back to clearing (null)
+    reset_value = report.airtable_trigger_reset_value or None
+    for val in ([reset_value] if reset_value else []) + [None]:
         try:
-            airtable._session.patch(
+            resp = airtable._session.patch(
                 f"{airtable._table_url}/{record_id}",
-                json={"fields": {report.airtable_trigger_field: report.airtable_trigger_reset_value}},
+                json={"fields": {report.airtable_trigger_field: val}},
             )
-            log.info("[%s] Status → '%s'", report.name, report.airtable_trigger_reset_value)
+            if resp.status_code < 300:
+                log.info("[%s] Trigger reset → %r", report.name, val)
+                break
+            log.warning("[%s] Trigger reset to %r got %s — %s", report.name, val, resp.status_code, resp.text[:200])
         except Exception as e:
-            log.warning("[%s] Could not reset trigger: %s", report.name, e)
+            log.warning("[%s] Could not reset trigger to %r: %s", report.name, val, e)
