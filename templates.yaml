@@ -36,83 +36,66 @@ pdf_reports:
       - "6:3936"  # page 3 — Live Day LDN summary
       - "6:1229"  # page 4 — Live Day NYC summary
 
-    # One entry per sponsorship combination.
-    # The pipeline matches the record's Location values (as a set) to the right combo.
-    combos:
+    # Pages per location — processed in order: Virtual → London → NYC.
+    # Each page is included only if its field_presence_fields are non-empty/non-zero.
+    # Leave field_presence_fields empty to always include the page.
+    location_pages:
 
-      - locations: ["Virtual"]
-        pages:
-          - figma_frame_node_id: "7:11088"
-            field_mappings:
-              "@":                         "Sponsor label"
-              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
-              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
-              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+      Virtual:
+        - figma_frame_node_id: "7:11088"
+          field_presence_fields:
+            - "REF: Total virtual workshop registrants (from Sponsor)"
+            - "REF Total virtual workshop attendees (from Sponsor)"
+            - "REF: Total virtual workshop view minutes (from Sponsor)"
+          field_mappings:
+            "@":                           "Sponsor label"
+            "#Virtual-wr registrations":   "REF: Total virtual workshop registrants (from Sponsor)"
+            "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
+            "#Total view minutes":         "REF: Total virtual workshop view minutes (from Sponsor)"
 
-      - locations: ["London"]
-        pages:
-          - figma_frame_node_id: "7:9671"
-            field_mappings:
-              "@":                        "Sponsor label"
-              "#Liveday-wr registrants":  "LDN In-person workshop registrations"
-              "#Live day workshop attendees": "LDN In-person workshop attendees"
-              "#Leads scanned at booth":  "LDN Booth leads scanned"
+      London:
+        # Live day page — included if booth, workshop, or attendee data is present
+        - figma_frame_node_id: "7:9671"
+          field_presence_fields:
+            - "LDN Booth leads scanned"
+            - "LDN In-person workshop registrations"
+            - "LDN In-person workshop attendees"
+          field_mappings:
+            "@":                            "Sponsor label"
+            "#Liveday-wr registrants":      "LDN In-person workshop registrations"
+            "#Live day workshop attendees": "LDN In-person workshop attendees"
+            "#Leads scanned at booth":      "LDN Booth leads scanned"
+        # Roundtable page — included only if roundtable data is present
+        - figma_frame_node_id: "28:2100"
+          field_presence_fields:
+            - "LDN Roundtable registrations"
+            - "LDN Roundtable attendees"
+          field_mappings:
+            "@":                         "Sponsor label"
+            "#Liveday-wr registrants":   "LDN Roundtable registrations"
+            "#Live day workshop attendees": "LDN Roundtable attendees"
 
-      - locations: ["NYC"]
-        pages:
-          - figma_frame_node_id: "7:8417"
-            field_mappings:
-              "@":                        "Sponsor label"
-              "#Liveday-wr registrants":  "NYC In-person workshop registrations"
-              "#Live day workshop attendees": "NYC In-person workshop attendees"
-              "#Leads scanned at booth":  "NYC Booth leads scanned"
-
-      - locations: ["Virtual", "London"]
-        pages:
-          - figma_frame_node_id: "6:6635"
-            field_mappings:
-              "@":                         "Sponsor label"
-              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
-              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
-              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
-              "#Leads scanned at booth":   "LDN Booth leads scanned"
-
-      - locations: ["Virtual", "NYC"]
-        pages:
-          - figma_frame_node_id: "7:12294"
-            field_mappings:
-              "@":                         "Sponsor label"
-              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
-              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
-              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
-              "#Leads scanned at booth":   "NYC Booth leads scanned"
-
-      - locations: ["London", "NYC"]
-        pages:
-          - figma_frame_node_id: "7:13534"
-            field_mappings:
-              "@":                            "Sponsor label"
-              "#Liveday-wr registrants":      "LDN In-person workshop registrations"
-              "#Live day workshop attendees[0]": "LDN In-person workshop attendees"
-              "#Leads scanned at booth[0]":   "LDN Booth leads scanned"
-              # Second occurrence of #Live day workshop attendees is the NYC "Leads scanned" slot
-              "#Live day workshop attendees[1]": "NYC Booth leads scanned"
-
-      - locations: ["Virtual", "London", "NYC"]
-        pages:
-          - figma_frame_node_id: "7:13534"   # LDN + NYC combined page
-            field_mappings:
-              "@":                            "Sponsor label"
-              "#Liveday-wr registrants":      "LDN In-person workshop registrations"
-              "#Live day workshop attendees[0]": "LDN In-person workshop attendees"
-              "#Leads scanned at booth[0]":   "LDN Booth leads scanned"
-              "#Live day workshop attendees[1]": "NYC Booth leads scanned"
-          - figma_frame_node_id: "7:11088"   # Virtual stats page
-            field_mappings:
-              "@":                         "Sponsor label"
-              "#Virtual-wr registrations": "REF: Total virtual workshop registrants (from Sponsor)"
-              "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
-              "#Total view minutes":       "REF: Total virtual workshop view minutes (from Sponsor)"
+      NYC:
+        # Live day page — included if booth, workshop, or attendee data is present
+        - figma_frame_node_id: "7:8417"
+          field_presence_fields:
+            - "NYC Booth leads scanned"
+            - "NYC In-person workshop registrations"
+            - "NYC In-person workshop attendees"
+          field_mappings:
+            "@":                            "Sponsor label"
+            "#Liveday-wr registrants":      "NYC In-person workshop registrations"
+            "#Live day workshop attendees": "NYC In-person workshop attendees"
+            "#Leads scanned at booth":      "NYC Booth leads scanned"
+        # Roundtable page — included only if roundtable data is present
+        - figma_frame_node_id: "32:989"
+          field_presence_fields:
+            - "NYC Roundtable registrations"
+            - "NYC Roundtable attendees"
+          field_mappings:
+            "@":                         "Sponsor label"
+            "#Liveday-wr registrants":   "NYC Roundtable registrations"
+            "#Live day workshop attendees": "NYC Roundtable attendees"
 
 
 # templates.yaml

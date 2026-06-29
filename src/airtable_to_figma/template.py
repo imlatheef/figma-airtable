@@ -483,6 +483,9 @@ class PdfPage(BaseModel):
     """One page in a PDF report — a Figma frame with an optional data overlay."""
     figma_frame_node_id: str
     field_mappings: dict[str, str] = {}
+    # If any of these Airtable fields are non-empty/non-zero, include this page.
+    # Leave empty to always include.
+    field_presence_fields: list[str] = []
 
     @field_validator("figma_frame_node_id")
     @classmethod
@@ -491,12 +494,6 @@ class PdfPage(BaseModel):
             return v
         v = v.split("&")[0].strip()
         return v.replace("-", ":") if ":" not in v else v
-
-
-class LocationCombo(BaseModel):
-    """Maps a set of Location multi-select values to one or more PDF pages."""
-    locations: list[str]
-    pages: list[PdfPage]
 
 
 class PdfReportConfig(BaseModel):
@@ -512,7 +509,10 @@ class PdfReportConfig(BaseModel):
     figma_file_key: str
     location_field: str
     static_page_ids: list[str]
-    combos: list[LocationCombo]
+    # location_pages maps each location name to an ordered list of pages.
+    # Pages are included only if field_presence_fields has data (or if empty, always included).
+    # Locations are processed in the order: Virtual, London, NYC.
+    location_pages: dict[str, list[PdfPage]] = {}
     font_map: dict[str, str] = {}
     logo_attachment_field: str = ""   # Airtable field containing sponsor logo
     logo_layer_name: str = "Logo"     # Figma layer name of the logo placeholder frame

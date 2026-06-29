@@ -531,57 +531,74 @@ def run_pdf_report_pipeline(
             _static_pdf_cache[cache_key] = page_bytes
             pdf_pages.append(page_bytes)
 
-    # Resolve location combo
+    # Resolve which locations this sponsor attended
     raw_loc = fields.get(report.location_field, [])
     if isinstance(raw_loc, list):
-        locations = frozenset(str(v).strip() for v in raw_loc)
+        locations = {str(v).strip() for v in raw_loc}
     else:
-        locations = frozenset(v.strip() for v in str(raw_loc).split(",")) if raw_loc else frozenset()
+        locations = {v.strip() for v in str(raw_loc).split(",")} if raw_loc else set()
 
     log.info("[%s] Location values: %s", report.name, sorted(locations))
 
-    matching = next(
-        (c for c in report.combos if frozenset(c.locations) == locations),
-        None,
-    )
-    if not matching:
-        log.warning("[%s] No combo matches %s — PDF will have only static pages", report.name, locations)
-    else:
-        for page in matching.pages:
-            log.info("[%s] Sponsor page %s", report.name, page.figma_frame_node_id)
+    def _field_has_value(v: Any) -> bool:
+        """Return True if the Airtable field value is non-empty and non-zero."""
+        if v is None:
+            return False
+        if isinstance(v, (int, float)):
+            return v != 0
+        if isinstance(v, str):
+            return v.strip() != ""
+        if isinstance(v, list):
+            return len(v) > 0
+        return bool(v)
 
-            # Export as image so we can composite logo before PDF conversion
-            img = figma.export_frame_image(page.figma_frame_node_id, scale=1.0, fmt="png")
+    def _process_sponsor_page(page: "PdfPage") -> None:
+        """Export, composite logo, overlay text, and append to pdf_pages."""
+        img = figma.export_frame_image(page.figma_frame_node_id, scale=1.0, fmt="png")
 
-            # Composite logo if available
-            if logo_bytes:
-                image_nodes = figma.get_image_nodes(page.figma_frame_node_id)
-                logo_node = next(
-                    (n for n in image_nodes if n["name"] == report.logo_layer_name),
-                    None,
-                )
-                if logo_node:
-                    log.info("[%s] Compositing logo onto layer '%s'", report.name, report.logo_layer_name)
-                    img = _composite_logo(img, logo_bytes, logo_node, scale=1.0)
-                else:
-                    log.warning("[%s] Logo layer '%s' not found in frame %s",
-                                report.name, report.logo_layer_name, page.figma_frame_node_id)
+        if logo_bytes:
+            image_nodes = figma.get_image_nodes(page.figma_frame_node_id)
+            logo_node = next(
+                (n for n in image_nodes if n["name"] == report.logo_layer_name), None
+            )
+            if logo_node:
+                log.info("[%s] Compositing logo onto '%s'", report.name, report.logo_layer_name)
+                img = _composite_logo(img, logo_bytes, logo_node, scale=1.0)
+            else:
+                log.warning("[%s] Logo layer '%s' not found in frame %s",
+                            report.name, report.logo_layer_name, page.figma_frame_node_id)
 
-            pdf_bytes = figma.image_to_pdf(img, scale=1.0)
+        page_pdf = figma.image_to_pdf(img, scale=1.0)
 
-            if page.field_mappings:
-                text_nodes = figma.get_text_nodes(page.figma_frame_node_id)
-                frame_w, frame_h = figma.get_frame_size(page.figma_frame_node_id)
-                pdf_bytes = _overlay_text_on_pdf(
-                    pdf_bytes,
-                    fields,
-                    page.field_mappings,
-                    text_nodes,
-                    frame_w,
-                    frame_h,
-                    report.font_map,
-                )
-            pdf_pages.append(pdf_bytes)
+        if page.field_mappings:
+            text_nodes = figma.get_text_nodes(page.figma_frame_node_id)
+            frame_w, frame_h = figma.get_frame_size(page.figma_frame_node_id)
+            page_pdf = _overlay_text_on_pdf(
+                page_pdf, fields, page.field_mappings,
+                text_nodes, frame_w, frame_h, report.font_map,
+            )
+        pdf_pages.append(page_pdf)
+
+    # Process sponsor pages — iterate locations in a consistent order,
+    # include each page only if its presence fields have data
+    LOCATION_ORDER = ["Virtual", "London", "NYC"]
+    added_pages = 0
+    for location in LOCATION_ORDER:
+        if location not in locations:
+            continue
+        for page in report.location_pages.get(location, []):
+            if page.field_presence_fields:
+                has_data = any(_field_has_value(fields.get(f)) for f in page.field_presence_fields)
+                if not has_data:
+                    log.info("[%s] Skipping page %s — no data in %s",
+                             report.name, page.figma_frame_node_id, page.field_presence_fields)
+                    continue
+            log.info("[%s] Sponsor page %s  location=%s", report.name, page.figma_frame_node_id, location)
+            _process_sponsor_page(page)
+            added_pages += 1
+
+    if added_pages == 0:
+        log.warning("[%s] No sponsor pages added — check location_pages config and field values", report.name)
 
     merged = _merge_pdfs(pdf_pages)
     log.info("[%s] Merged PDF  pages=%d  size=%d bytes", report.name, len(pdf_pages), len(merged))
