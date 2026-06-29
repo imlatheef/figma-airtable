@@ -29,12 +29,14 @@ pdf_reports:
       "Space Grotesk":        "SpaceGrotesk-Regular.ttf"
       "Space Grotesk Medium": "SpaceGrotesk-Medium.ttf"
 
-    # Pages 1–4 are always included, exported as-is (no data overlay).
+    # Pages 1, 3, 4 are always included first, exported as-is (no data overlay).
     static_page_ids:
       - "6:695"   # page 1 — overall overview
-      - "6:844"   # page 2 — audience demographics
       - "6:3936"  # page 3 — Live Day LDN summary
       - "6:1229"  # page 4 — Live Day NYC summary
+
+    # Page 29 is always appended as the last page of every report.
+    closing_page_id: "43:1397"
 
     # Pages per location — processed in order: Virtual → London → NYC.
     # Each page is included only if its field_presence_fields are non-empty/non-zero.

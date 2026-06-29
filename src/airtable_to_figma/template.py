@@ -509,6 +509,7 @@ class PdfReportConfig(BaseModel):
     figma_file_key: str
     location_field: str
     static_page_ids: list[str]
+    closing_page_id: str = ""  # appended as the last page of every report
     # location_pages maps each location name to an ordered list of pages.
     # Pages are included only if field_presence_fields has data (or if empty, always included).
     # Locations are processed in the order: Virtual, London, NYC.

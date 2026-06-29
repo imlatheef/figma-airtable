@@ -602,6 +602,18 @@ def run_pdf_report_pipeline(
     if added_pages == 0:
         log.warning("[%s] No sponsor pages added — check location_pages config and field values", report.name)
 
+    # Closing page — always last
+    if report.closing_page_id:
+        cache_key = (report.figma_file_key, report.closing_page_id)
+        if cache_key in _static_pdf_cache:
+            log.info("[%s] Closing page %s (cached)", report.name, report.closing_page_id)
+            pdf_pages.append(_static_pdf_cache[cache_key])
+        else:
+            log.info("[%s] Closing page %s", report.name, report.closing_page_id)
+            page_bytes = figma.export_frame_pdf(report.closing_page_id)
+            _static_pdf_cache[cache_key] = page_bytes
+            pdf_pages.append(page_bytes)
+
     merged = _merge_pdfs(pdf_pages)
     log.info("[%s] Merged PDF  pages=%d  size=%d bytes", report.name, len(pdf_pages), len(merged))
 
