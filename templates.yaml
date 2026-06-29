@@ -66,7 +66,7 @@ pdf_reports:
             "#Live day workshop attendees": "LDN In-person workshop attendees"
             "#Leads scanned at booth":      "LDN Booth leads scanned"
         # Roundtable page — included only if roundtable data is present
-        - figma_frame_node_id: "28:2100"
+        - figma_frame_node_id: "28:2072"
           field_presence_fields:
             - "LDN Roundtable registrations"
             - "LDN Roundtable attendees"
@@ -88,7 +88,7 @@ pdf_reports:
             "#Live day workshop attendees": "NYC In-person workshop attendees"
             "#Leads scanned at booth":      "NYC Booth leads scanned"
         # Roundtable page — included only if roundtable data is present
-        - figma_frame_node_id: "32:989"
+        - figma_frame_node_id: "32:961"
           field_presence_fields:
             - "NYC Roundtable registrations"
             - "NYC Roundtable attendees"

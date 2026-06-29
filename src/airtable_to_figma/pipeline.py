@@ -411,10 +411,12 @@ def _overlay_text_on_pdf(
             continue
 
         raw_val = fields.get(airtable_field)
-        if raw_val is None:
-            log.warning("PDF overlay: Airtable field '%s' is empty — skipping", airtable_field)
-            continue
-        text = str(int(raw_val)) if isinstance(raw_val, float) and raw_val == int(raw_val) else str(raw_val)
+        if raw_val in (None, "", 0, [], {}):
+            text = "—"
+        elif isinstance(raw_val, float) and raw_val == int(raw_val):
+            text = str(int(raw_val))
+        else:
+            text = str(raw_val)
 
         node = node_list[idx]
         rel_x = (node["x"] - node["frame_x"]) * scale_x
