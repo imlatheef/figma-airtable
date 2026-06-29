@@ -533,15 +533,6 @@ def run_pdf_report_pipeline(
             _static_pdf_cache[cache_key] = page_bytes
             pdf_pages.append(page_bytes)
 
-    # Resolve which locations this sponsor attended
-    raw_loc = fields.get(report.location_field, [])
-    if isinstance(raw_loc, list):
-        locations = {str(v).strip() for v in raw_loc}
-    else:
-        locations = {v.strip() for v in str(raw_loc).split(",")} if raw_loc else set()
-
-    log.info("[%s] Location values: %s", report.name, sorted(locations))
-
     def _field_has_value(v: Any) -> bool:
         """Return True if the Airtable field value is non-empty and non-zero."""
         if v is None:
@@ -581,26 +572,33 @@ def run_pdf_report_pipeline(
             )
         pdf_pages.append(page_pdf)
 
-    # Process sponsor pages — iterate locations in a consistent order,
-    # include each page only if its presence fields have data
-    LOCATION_ORDER = ["Virtual", "London", "NYC"]
+    # Determine which named field groups have data
+    active_groups: set[str] = set()
+    for group_name, group_fields in report.field_groups.items():
+        if any(_field_has_value(fields.get(f)) for f in group_fields):
+            active_groups.add(group_name)
+    log.info("[%s] Active field groups: %s", report.name, sorted(active_groups))
+
+    # Process combo pages in config order: include a page only when all required
+    # groups are active and all excluded groups are inactive
     added_pages = 0
-    for location in LOCATION_ORDER:
-        if location not in locations:
+    for combo in report.combo_pages:
+        missing = [g for g in combo.require if g not in active_groups]
+        blocked = [g for g in combo.exclude if g in active_groups]
+        if missing:
+            log.info("[%s] Skipping frame %s — inactive required groups: %s",
+                     report.name, combo.figma_frame_node_id, missing)
             continue
-        for page in report.location_pages.get(location, []):
-            if page.field_presence_fields:
-                has_data = any(_field_has_value(fields.get(f)) for f in page.field_presence_fields)
-                if not has_data:
-                    log.info("[%s] Skipping page %s — no data in %s",
-                             report.name, page.figma_frame_node_id, page.field_presence_fields)
-                    continue
-            log.info("[%s] Sponsor page %s  location=%s", report.name, page.figma_frame_node_id, location)
-            _process_sponsor_page(page)
-            added_pages += 1
+        if blocked:
+            log.info("[%s] Skipping frame %s — active excluded groups: %s",
+                     report.name, combo.figma_frame_node_id, blocked)
+            continue
+        log.info("[%s] Including frame %s  require=%s", report.name, combo.figma_frame_node_id, combo.require)
+        _process_sponsor_page(combo)
+        added_pages += 1
 
     if added_pages == 0:
-        log.warning("[%s] No sponsor pages added — check location_pages config and field values", report.name)
+        log.warning("[%s] No sponsor pages added — check combo_pages config and field group values", report.name)
 
     # Closing page — always last
     if report.closing_page_id:

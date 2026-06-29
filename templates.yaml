@@ -16,9 +16,6 @@ pdf_reports:
     # Figma file containing all 10 report frames.
     figma_file_key: "2l8icaQqVfYBuSIjWYZ98s"
 
-    # Multi-select field in Airtable with options: London, NYC, Virtual.
-    location_field: "Location"
-
     # Sponsor logo: pulled from this Airtable attachment field and composited
     # onto the "Logo" placeholder frame in every sponsor-specific page.
     logo_attachment_field: "Logo"
@@ -38,66 +35,104 @@ pdf_reports:
     # Page 29 is always appended as the last page of every report.
     closing_page_id: "43:1397"
 
-    # Pages per location — processed in order: Virtual → London → NYC.
-    # Each page is included only if its field_presence_fields are non-empty/non-zero.
-    # Leave field_presence_fields empty to always include the page.
-    location_pages:
+    # Named field groups — a group is "active" if ANY field in it has a value.
+    field_groups:
+      virtual:
+        - "Workshop registrations"
+        - "Workshop attendees"
+        - "Workshop view minutes"
+      ldn_live:
+        - "LDN Booth leads scanned copy"
+        - "LDN pre-event workshop registrations"
+        - "LDN workshop attendees"
+      nyc_live:
+        - "NYC Booth leads scanned"
+        - "NYC pre-evnt workshop registrations"
+        - "NYC workshop attendees"
+      ldn_rt:
+        - "LDN Roundtable registrations"
+        - "LDN Roundtable attendees"
+      nyc_rt:
+        - "NYC Roundtable registrations"
+        - "NYC Roundtable attendees"
 
-      Virtual:
-        - figma_frame_node_id: "7:11088"
-          field_presence_fields:
-            - "REF: Total virtual workshop registrants (from Sponsor)"
-            - "REF Total virtual workshop attendees (from Sponsor)"
-            - "REF: Total virtual workshop view minutes (from Sponsor)"
-          field_mappings:
-            "@":                           "Sponsor label"
-            "#Virtual-wr registrations":   "REF: Total virtual workshop registrants (from Sponsor)"
-            "#Virtual workshop attendees": "REF Total virtual workshop attendees (from Sponsor)"
-            "#Total view minutes":         "REF: Total virtual workshop view minutes (from Sponsor)"
+    # Combo pages — each page is included when all `require` groups are active
+    # and all `exclude` groups are inactive. Evaluated in order.
+    combo_pages:
 
-      London:
-        # Live day page — included if booth, workshop, or attendee data is present
-        - figma_frame_node_id: "7:9671"
-          field_presence_fields:
-            - "LDN Booth leads scanned"
-            - "LDN In-person workshop registrations"
-            - "LDN In-person workshop attendees"
-          field_mappings:
-            "@":                            "Sponsor label"
-            "#Liveday-wr registrants":      "LDN In-person workshop registrations"
-            "#Live day workshop attendees": "LDN In-person workshop attendees"
-            "#Leads scanned at booth":      "LDN Booth leads scanned"
-        # Roundtable page — included only if roundtable data is present
-        - figma_frame_node_id: "28:2072"
-          field_presence_fields:
-            - "LDN Roundtable registrations"
-            - "LDN Roundtable attendees"
-          field_mappings:
-            "@":                         "Sponsor label"
-            "#Liveday-wr registrants":   "LDN Roundtable registrations"
-            "#Live day workshop attendees": "LDN Roundtable attendees"
+      # Frame 8 — virtual only (no LDN, no NYC live day data)
+      - figma_frame_node_id: "7:11088"
+        require: [virtual]
+        exclude: [ldn_live, nyc_live]
+        field_mappings:
+          "@":                           "Sponsor label"
+          "#Virtual-wr registrations":   "Workshop registrations"
+          "#Virtual workshop attendees": "Workshop attendees"
+          "#Total view minutes":         "Workshop view minutes"
 
-      NYC:
-        # Live day page — included if booth, workshop, or attendee data is present
-        - figma_frame_node_id: "7:8417"
-          field_presence_fields:
-            - "NYC Booth leads scanned"
-            - "NYC In-person workshop registrations"
-            - "NYC In-person workshop attendees"
-          field_mappings:
-            "@":                            "Sponsor label"
-            "#Liveday-wr registrants":      "NYC In-person workshop registrations"
-            "#Live day workshop attendees": "NYC In-person workshop attendees"
-            "#Leads scanned at booth":      "NYC Booth leads scanned"
-        # Roundtable page — included only if roundtable data is present
-        - figma_frame_node_id: "32:961"
-          field_presence_fields:
-            - "NYC Roundtable registrations"
-            - "NYC Roundtable attendees"
-          field_mappings:
-            "@":                         "Sponsor label"
-            "#Liveday-wr registrants":   "NYC Roundtable registrations"
-            "#Live day workshop attendees": "NYC Roundtable attendees"
+      # Frame 5 — virtual + LDN only (no NYC)
+      - figma_frame_node_id: "6:6635"
+        require: [virtual, ldn_live]
+        exclude: [nyc_live]
+        field_mappings:
+          "@":                            "Sponsor label"
+          "#Virtual-wr registrations":    "Workshop registrations"
+          "#Virtual workshop attendees":  "Workshop attendees"
+          "#Total view minutes":          "Workshop view minutes"
+          "#Liveday-wr registrants":      "LDN pre-event workshop registrations"
+          "#Live day workshop attendees": "LDN workshop attendees"
+          "#Leads scanned at booth":      "LDN Booth leads scanned copy"
+
+      # Frame 9 — virtual + NYC only (no LDN)
+      - figma_frame_node_id: "7:12294"
+        require: [virtual, nyc_live]
+        exclude: [ldn_live]
+        field_mappings:
+          "@":                            "Sponsor label"
+          "#Virtual-wr registrations":    "Workshop registrations"
+          "#Virtual workshop attendees":  "Workshop attendees"
+          "#Total view minutes":          "Workshop view minutes"
+          "#Liveday-wr registrants":      "NYC pre-evnt workshop registrations"
+          "#Live day workshop attendees": "NYC workshop attendees"
+          "#Leads scanned at booth":      "NYC Booth leads scanned"
+
+      # Frame 8 — virtual stats (when all three present; virtual + LDN + NYC)
+      - figma_frame_node_id: "7:11088"
+        require: [virtual, ldn_live, nyc_live]
+        field_mappings:
+          "@":                           "Sponsor label"
+          "#Virtual-wr registrations":   "Workshop registrations"
+          "#Virtual workshop attendees": "Workshop attendees"
+          "#Total view minutes":         "Workshop view minutes"
+
+      # Frame 10 — combined LDN + NYC stats (when all three present)
+      # Duplicate layer names: [0] = LDN section, [1] = NYC section
+      - figma_frame_node_id: "7:13534"
+        require: [virtual, ldn_live, nyc_live]
+        field_mappings:
+          "@":                               "Sponsor label"
+          "#Liveday-wr registrants[0]":      "LDN pre-event workshop registrations"
+          "#Live day workshop attendees[0]": "LDN workshop attendees"
+          "#Leads scanned at booth[0]":      "LDN Booth leads scanned copy"
+          "#Liveday-wr registrants[1]":      "NYC pre-evnt workshop registrations"
+          "#Live day workshop attendees[1]": "NYC workshop attendees"
+          "#Leads scanned at booth[1]":      "NYC Booth leads scanned"
+
+      # Frame 11 — LDN roundtable (independent of virtual/live day combo)
+      - figma_frame_node_id: "28:2072"
+        require: [ldn_rt]
+        field_mappings:
+          "@":                            "Sponsor label"
+          "#Liveday-wr registrants":      "LDN Roundtable registrations"
+          "#Live day workshop attendees": "LDN Roundtable attendees"
+
+      # Frame 12 — NYC roundtable (independent of virtual/live day combo)
+      - figma_frame_node_id: "32:961"
+        require: [nyc_rt]
+        field_mappings:
+          "@":                            "Sponsor label"
+          "#Liveday-wr registrants":      "NYC Roundtable registrations"
+          "#Live day workshop attendees": "NYC Roundtable attendees"
 
 
 # templates.yaml

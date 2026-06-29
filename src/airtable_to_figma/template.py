@@ -496,6 +496,22 @@ class PdfPage(BaseModel):
         return v.replace("-", ":") if ":" not in v else v
 
 
+class ComboPage(BaseModel):
+    """A sponsor-specific page selected by field-group combination logic."""
+    figma_frame_node_id: str
+    require: list[str] = []   # group names; ALL must be active to include this page
+    exclude: list[str] = []   # group names; ALL must be inactive to include this page
+    field_mappings: dict[str, str] = {}
+
+    @field_validator("figma_frame_node_id")
+    @classmethod
+    def normalise_node_id(cls, v: str) -> str:
+        if not v:
+            return v
+        v = v.split("&")[0].strip()
+        return v.replace("-", ":") if ":" not in v else v
+
+
 class PdfReportConfig(BaseModel):
     name: str
     airtable_base_id: str
@@ -507,16 +523,15 @@ class PdfReportConfig(BaseModel):
     airtable_trigger_working_value: str = ""
     attachment_field: str
     figma_file_key: str
-    location_field: str
     static_page_ids: list[str]
-    closing_page_id: str = ""  # appended as the last page of every report
-    # location_pages maps each location name to an ordered list of pages.
-    # Pages are included only if field_presence_fields has data (or if empty, always included).
-    # Locations are processed in the order: Virtual, London, NYC.
-    location_pages: dict[str, list[PdfPage]] = {}
+    closing_page_id: str = ""
+    # Named groups of Airtable fields; a group is "active" if any field in it is non-empty.
+    field_groups: dict[str, list[str]] = {}
+    # Pages selected by which groups are active/inactive.
+    combo_pages: list[ComboPage] = []
     font_map: dict[str, str] = {}
-    logo_attachment_field: str = ""   # Airtable field containing sponsor logo
-    logo_layer_name: str = "Logo"     # Figma layer name of the logo placeholder frame
+    logo_attachment_field: str = ""
+    logo_layer_name: str = "Logo"
 
 
 def load_pdf_reports(path: Path | str | None = None) -> list[PdfReportConfig]:
