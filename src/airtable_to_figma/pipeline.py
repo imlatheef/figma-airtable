@@ -624,8 +624,10 @@ def run_pdf_report_pipeline(
     except Exception as e:
         log.warning("[%s] Could not clear old attachment: %s", report.name, e)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"sponsor_report_{record_id}_{timestamp}.pdf"
+    raw_label = str(fields.get("Sponsor label") or "").strip()
+    safe_label = re.sub(r"[^\w\s-]", "", raw_label).strip()
+    safe_label = re.sub(r"[\s_]+", "-", safe_label) or "sponsor-report"
+    filename = f"{safe_label}-PC26-Recap.pdf"
     airtable.upload_attachment(
         record_id=record_id,
         attachment_field=report.attachment_field,

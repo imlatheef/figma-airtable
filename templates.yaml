@@ -105,7 +105,7 @@ pdf_reports:
           "#Virtual-wr registrations":    "Workshop registrations"
           "#Virtual workshop attendees":  "Workshop attendees"
           "#Total view minutes":          "Workshop view minutes"
-          "#Liveday-avg-lead-scans":      "LDN Booth leads scanned copy"
+          "#Liveday-avg-lead-scans":      "Avg leads captured Live Day LDN"
           "#Leads scanned at booth":      "LDN Booth leads scanned copy"
 
       # ── Virtual + NYC only (no LDN) ─────────────────────────────────────────
@@ -131,7 +131,7 @@ pdf_reports:
           "#Virtual-wr registrations":    "Workshop registrations"
           "#Virtual workshop attendees":  "Workshop attendees"
           "#Total view minutes":          "Workshop view minutes"
-          "#Liveday-avg-lead-scans":      "NYC Booth leads scanned"
+          "#Liveday-avg-lead-scans":      "Avg leads captured Live Day NYC"
           "#Leads scanned at booth":      "NYC Booth leads scanned"
 
       # ── All three: virtual + LDN + NYC ──────────────────────────────────────
@@ -164,9 +164,9 @@ pdf_reports:
         exclude: [any_workshop]
         field_mappings:
           "@":                                   "Sponsor label"
-          "#Liveday-avg-lead-scans[0]":          "LDN Booth leads scanned copy"
+          "#Liveday-avg-lead-scans[0]":          "Avg leads captured Live Day LDN"
           "#Leads scanned at booth[0]":          "LDN Booth leads scanned copy"
-          "#Liveday-avg-lead-scans[1]":          "NYC Booth leads scanned"
+          "#Liveday-avg-lead-scans[1]":          "Avg leads captured Live Day NYC"
           "#Leads scanned at booth[1]":          "NYC Booth leads scanned"
 
       # ── LDN only, no virtual ────────────────────────────────────────────────
@@ -186,7 +186,7 @@ pdf_reports:
         exclude: [virtual, nyc_live, ldn_workshop]
         field_mappings:
           "@":                       "Sponsor label"
-          "#Liveday-avg-lead-scans": "LDN Booth leads scanned copy"
+          "#Liveday-avg-lead-scans": "Avg leads captured Live Day LDN"
           "#Leads scanned at booth": "LDN Booth leads scanned copy"
 
       # ── NYC only, no virtual ────────────────────────────────────────────────
@@ -206,7 +206,7 @@ pdf_reports:
         exclude: [virtual, ldn_live, nyc_workshop]
         field_mappings:
           "@":                       "Sponsor label"
-          "#Liveday-avg-lead-scans": "NYC Booth leads scanned"
+          "#Liveday-avg-lead-scans": "Avg leads captured Live Day NYC"
           "#Leads scanned at booth": "NYC Booth leads scanned"
 
       # ── Roundtables (independent of live day combo) ──────────────────────────
