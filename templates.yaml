@@ -144,10 +144,10 @@ pdf_reports:
           "#Virtual workshop attendees": "Workshop attendees"
           "#Total view minutes":         "Workshop view minutes"
 
-      # Frame 10 — LDN + NYC combined, at least one location has workshops
+      # Frame 10 — LDN + NYC combined, BOTH locations have workshops
       # [0] = LDN section, [1] = NYC section
       - figma_frame_node_id: "7:13534"
-        require: [virtual, ldn_live, nyc_live, any_workshop]
+        require: [virtual, ldn_live, nyc_live, ldn_workshop, nyc_workshop]
         field_mappings:
           "@":                               "Sponsor label"
           "#Liveday-wr registrants[0]":      "LDN pre-event workshop registrations"
@@ -157,7 +157,35 @@ pdf_reports:
           "#Live day workshop attendees[1]": "NYC workshop attendees"
           "#Leads scanned at booth[1]":      "NYC Booth leads scanned"
 
-      # Frame 34 — LDN + NYC combined, both booth-only (no workshops on either)
+      # Frame 35 — LDN booth-only, NYC with workshops
+      # [0] = LDN section (2-stat booth), [1] = NYC section (3-stat workshop)
+      # #Live day workshop attendees has no duplicate — only in NYC section, no index needed
+      - figma_frame_node_id: "69:5373"
+        require: [virtual, ldn_live, nyc_live, nyc_workshop]
+        exclude: [ldn_workshop]
+        field_mappings:
+          "@":                              "Sponsor label"
+          "#Liveday-wr registrants[0]":    "Avg leads captured Live Day LDN"
+          "#Leads scanned at booth[0]":    "LDN Booth leads scanned copy"
+          "#Liveday-wr registrants[1]":    "NYC pre-evnt workshop registrations"
+          "#Live day workshop attendees":  "NYC workshop attendees"
+          "#Leads scanned at booth[1]":    "NYC Booth leads scanned"
+
+      # Frame 36 — LDN with workshops, NYC booth-only
+      # [0] = LDN section (3-stat workshop), [1] = NYC section (2-stat booth)
+      # #Live day workshop attendees has no duplicate — only in LDN section, no index needed
+      - figma_frame_node_id: "69:5615"
+        require: [virtual, ldn_live, nyc_live, ldn_workshop]
+        exclude: [nyc_workshop]
+        field_mappings:
+          "@":                              "Sponsor label"
+          "#Liveday-wr registrants[0]":    "LDN pre-event workshop registrations"
+          "#Live day workshop attendees":  "LDN workshop attendees"
+          "#Leads scanned at booth[0]":    "LDN Booth leads scanned copy"
+          "#Liveday-wr registrants[1]":    "Avg leads captured Live Day NYC"
+          "#Leads scanned at booth[1]":    "NYC Booth leads scanned"
+
+      # Frame 34 — LDN + NYC combined, BOTH locations booth-only (no workshops)
       # [0] = LDN section, [1] = NYC section
       - figma_frame_node_id: "67:4863"
         require: [virtual, ldn_live, nyc_live]
