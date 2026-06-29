@@ -19,6 +19,11 @@ pdf_reports:
     # Multi-select field in Airtable with options: London, NYC, Virtual.
     location_field: "Location"
 
+    # Sponsor logo: pulled from this Airtable attachment field and composited
+    # onto the "Logo" placeholder frame in every sponsor-specific page.
+    logo_attachment_field: "Logo"
+    logo_layer_name:        "Logo"
+
     font_map:
       "Space Grotesk Bold":   "SpaceGrotesk-Bold.ttf"
       "Space Grotesk":        "SpaceGrotesk-Regular.ttf"

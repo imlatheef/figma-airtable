@@ -320,6 +320,37 @@ def _resolve_pdf_font(node: dict, font_map: dict[str, str]) -> str:
     return "Helvetica"
 
 
+def _composite_logo(
+    base_img: "Image.Image",
+    logo_bytes: bytes,
+    logo_node: dict,
+    scale: float = 1.0,
+) -> "Image.Image":
+    """
+    Paste the sponsor logo onto base_img at the position of logo_node.
+
+    The logo is scaled to fit within the node bounding box while preserving
+    aspect ratio, then centred within that box.
+    """
+    node_x = int((logo_node["x"] - logo_node["frame_x"]) * scale)
+    node_y = int((logo_node["y"] - logo_node["frame_y"]) * scale)
+    node_w = int(logo_node["width"] * scale)
+    node_h = int(logo_node["height"] * scale)
+
+    logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
+
+    # Scale logo to fit within the node box, preserving aspect ratio
+    logo.thumbnail((node_w, node_h), Image.LANCZOS)
+
+    # Centre within the node box
+    paste_x = node_x + (node_w - logo.width) // 2
+    paste_y = node_y + (node_h - logo.height) // 2
+
+    result = base_img.convert("RGBA").copy()
+    result.paste(logo, (paste_x, paste_y), mask=logo)
+    return result
+
+
 def _merge_pdfs(pdf_list: list[bytes]) -> bytes:
     """Merge a list of single-page PDF byte strings into one multi-page PDF."""
     from pypdf import PdfReader, PdfWriter
@@ -470,6 +501,24 @@ def run_pdf_report_pipeline(
     figma = FigmaClient(api_key=settings.figma_api_key, file_key=report.figma_file_key)
     pdf_pages: list[bytes] = []
 
+    # Fetch sponsor logo once if configured
+    logo_bytes: bytes | None = None
+    if report.logo_attachment_field:
+        attachments = fields.get(report.logo_attachment_field) or []
+        if attachments and isinstance(attachments, list):
+            logo_url = attachments[0].get("url")
+            if logo_url:
+                try:
+                    resp = requests.get(logo_url, timeout=30)
+                    resp.raise_for_status()
+                    logo_bytes = resp.content
+                    log.info("[%s] Fetched logo from '%s'  size=%d bytes",
+                             report.name, report.logo_attachment_field, len(logo_bytes))
+                except Exception as exc:
+                    log.warning("[%s] Could not fetch logo: %s", report.name, exc)
+        else:
+            log.info("[%s] No logo attachment found in '%s'", report.name, report.logo_attachment_field)
+
     # Static pages — export once and cache for the lifetime of the process
     for frame_id in report.static_page_ids:
         cache_key = (report.figma_file_key, frame_id)
@@ -500,7 +549,25 @@ def run_pdf_report_pipeline(
     else:
         for page in matching.pages:
             log.info("[%s] Sponsor page %s", report.name, page.figma_frame_node_id)
-            pdf_bytes = figma.export_frame_pdf(page.figma_frame_node_id)
+
+            # Export as image so we can composite logo before PDF conversion
+            img = figma.export_frame_image(page.figma_frame_node_id, scale=1.0, fmt="png")
+
+            # Composite logo if available
+            if logo_bytes:
+                image_nodes = figma.get_image_nodes(page.figma_frame_node_id)
+                logo_node = next(
+                    (n for n in image_nodes if n["name"] == report.logo_layer_name),
+                    None,
+                )
+                if logo_node:
+                    log.info("[%s] Compositing logo onto layer '%s'", report.name, report.logo_layer_name)
+                    img = _composite_logo(img, logo_bytes, logo_node, scale=1.0)
+                else:
+                    log.warning("[%s] Logo layer '%s' not found in frame %s",
+                                report.name, report.logo_layer_name, page.figma_frame_node_id)
+
+            pdf_bytes = figma.image_to_pdf(img, scale=1.0)
 
             if page.field_mappings:
                 text_nodes = figma.get_text_nodes(page.figma_frame_node_id)

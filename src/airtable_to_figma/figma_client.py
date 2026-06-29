@@ -188,20 +188,19 @@ class FigmaClient:
             self._walk(child, result, frame_x, frame_y)
 
     def export_frame_pdf(self, frame_node_id: str, scale: float = 1.0) -> bytes:
-        """
-        Export a Figma frame as a single-page PDF.
+        """Export a Figma frame as a single-page PDF."""
+        img = self.export_frame_image(frame_node_id, scale=scale, fmt="png")
+        pdf = self.image_to_pdf(img, scale=scale)
+        log.info("Converted frame %s to PDF  size=(%.0f, %.0f)pt", frame_node_id, img.width / scale, img.height / scale)
+        return pdf
 
-        Uses the PNG export path (already reliable) and embeds the image into a
-        PDF page sized to the frame's Figma-unit dimensions, so text overlay
-        coordinates map 1:1 with no scaling.
-        """
+    def image_to_pdf(self, img: Image.Image, scale: float = 1.0) -> bytes:
+        """Wrap a PIL Image in a single-page PDF sized to the image's Figma-unit dimensions."""
         from reportlab.lib.utils import ImageReader
         from reportlab.pdfgen import canvas as rl_canvas
 
-        img = self.export_frame_image(frame_node_id, scale=scale, fmt="png")
         frame_w = img.width / scale
         frame_h = img.height / scale
-
         buf = io.BytesIO()
         c = rl_canvas.Canvas(buf, pagesize=(frame_w, frame_h))
         img_buf = io.BytesIO()
@@ -209,7 +208,6 @@ class FigmaClient:
         img_buf.seek(0)
         c.drawImage(ImageReader(img_buf), 0, 0, frame_w, frame_h)
         c.save()
-        log.info("Converted frame %s to PDF  size=(%.0f, %.0f)pt", frame_node_id, frame_w, frame_h)
         return buf.getvalue()
 
     def export_frame_image(

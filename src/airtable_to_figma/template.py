@@ -514,6 +514,8 @@ class PdfReportConfig(BaseModel):
     static_page_ids: list[str]
     combos: list[LocationCombo]
     font_map: dict[str, str] = {}
+    logo_attachment_field: str = ""   # Airtable field containing sponsor logo
+    logo_layer_name: str = "Logo"     # Figma layer name of the logo placeholder frame
 
 
 def load_pdf_reports(path: Path | str | None = None) -> list[PdfReportConfig]:
