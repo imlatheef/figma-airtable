@@ -361,6 +361,24 @@ templates:
             figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
             figma_frame_node_id: "71-2792"
 
+      - name: "Demo Open Graph"
+        selection_value:       "Demo-opengraph"
+        attachment_field:      "Session Open Graph"
+        figma_file_key:        "RTwPDkPRacTJLbO1fz5ruk"
+        figma_frame_node_id:   "222-1231"
+        figma_export_scale:    2.0
+        auto_variant_on_field: "Pic speaker 2"
+        auto_variant_name:     "two_speakers"
+        field_mapping_overrides:
+          "Speaker 2": "Speaker name 2"
+          "Tagline (from Speakers) 2": "Job 2"
+        image_field_mapping_overrides:
+          "Pic speaker 2": "Photo2"
+        variants:
+          two_speakers:
+            figma_file_key:      "RTwPDkPRacTJLbO1fz5ruk"
+            figma_frame_node_id: "222-1325"
+
       - name: "Workshop Socials"
         selection_value:       "Workshop-social"
         attachment_field:      "Session social"
